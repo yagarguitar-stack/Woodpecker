@@ -1,0 +1,2826 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Woodpecker</title>
+<style>
+  :root{
+    /* --- 紙とインク。差し色は1色だけ --- */
+    --paper:#f4f2ea;
+    --paper-deep:#eae6da;
+    --card:#fbfaf5;
+    --ink:#1b1a16;
+    --ink-soft:#494640;
+    --stave:#3a3730;
+    --muted:#8b8578;
+    --rule:#d6d0c0;
+    --rule-fine:#e6e1d3;
+    --accent:#8e2f39;
+    --accent-deep:#75252d;
+    --accent-soft:#f2e7e6;
+    --good:#40573c;
+    --good-soft:#e9eee4;
+    --bad:#8e2f39;
+    --bad-soft:#f2e7e6;
+    --line:#d6d0c0;
+    --bar-fill:#3a3730;
+
+    --sans:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',system-ui,-apple-system,sans-serif;
+    --serif:'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP','Hiragino Kaku Gothic ProN',serif;
+    --num:'Iowan Old Style','Palatino Linotype','Palatino','Georgia',var(--serif);
+
+    /* --- 余白は4pxの倍数 --- */
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+    --s6:32px; --s7:48px; --s8:64px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans);
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    font-size:15px; line-height:1.5;
+    padding:0 0 var(--s8);
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:0 var(--s4);}
+  button{font-family:inherit;color:inherit;}
+  ::selection{background:var(--accent-soft);}
+  /* キーボード操作のときだけ枠を出す */
+  :focus{outline:none;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+
+  /* ============ ヘッダ ============ */
+  header{padding:var(--s7) 0 0;transition:padding .2s ease;}
+  .ttl{margin:0;line-height:0;}
+  .ttl #logo{display:block;width:300px;max-width:100%;height:auto;transition:width .2s ease;}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+  .ttl-sub{
+    color:var(--muted);font-size:11.5px;margin:var(--s3) 0 0;
+    letter-spacing:.24em;transition:opacity .2s,height .2s,margin .2s;
+  }
+  .headrule{border:0;border-top:1px solid var(--ink);margin:var(--s5) 0 0;transition:margin .2s;}
+
+  /* 節を読んでいるあいだは、ヘッダを1行に畳む */
+  body.reading header{padding:var(--s5) 0 0;}
+  body.reading .ttl #logo{width:150px;}
+  body.reading .ttl-sub{height:0;opacity:0;margin:0;overflow:hidden;}
+  body.reading .headrule{margin:var(--s3) 0 0;}
+
+  .topbar{
+    position:sticky;top:0;z-index:5;background:var(--paper);
+    padding:var(--s3) 0 0;margin-bottom:var(--s2);
+    box-shadow:0 8px 12px -10px rgba(27,26,22,.18);
+  }
+  .topbar-in{display:flex;align-items:center;gap:var(--s4);padding-bottom:var(--s3);}
+  .backbtn{
+    background:none;border:0;padding:var(--s2) 0;cursor:pointer;
+    color:var(--ink-soft);font-size:13px;letter-spacing:.06em;
+    border-bottom:1px solid transparent;transition:border-color .15s,color .15s;
+  }
+  .backbtn:hover{color:var(--ink);border-bottom-color:var(--ink);}
+  .crumb{color:var(--muted);font-size:11.5px;letter-spacing:.1em;margin-left:auto;}
+  .readbar{height:2px;background:var(--rule-fine);}
+  .readbar i{display:block;height:100%;background:var(--accent);width:0;transition:width .1s linear;}
+
+  /* ============ 目次 ============ */
+  .toc-lead{
+    color:var(--muted);font-size:13px;line-height:1.95;margin:var(--s5) 0 var(--s5);
+    max-width:54ch;
+  }
+  .resume{
+    display:flex;align-items:baseline;gap:var(--s3);flex-wrap:wrap;
+    padding:var(--s4) 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule);
+    margin:0 0 var(--s6);
+  }
+  .resume .lbl{font-size:11px;letter-spacing:.14em;color:var(--muted);}
+  .resume button{
+    background:none;border:0;padding:0;cursor:pointer;font-family:var(--serif);
+    font-size:17px;border-bottom:1px solid var(--accent);color:var(--ink);
+    transition:color .15s;
+  }
+  .resume button:hover{color:var(--accent);}
+
+  /* 全体の進み具合 */
+  .overall{
+    display:flex;align-items:flex-end;gap:var(--s5);flex-wrap:wrap;
+    border-top:3px solid var(--ink);border-bottom:1px solid var(--rule);
+    padding:var(--s4) 0 var(--s4);margin:0 0 var(--s5);
+  }
+  .overall .big{font-family:var(--num);font-size:3rem;line-height:.95;margin:0;
+                font-variant-numeric:lining-nums;}
+  .overall .big span{font-size:.36em;color:var(--muted);margin-left:.25em;letter-spacing:.06em;}
+  .overall .lbl{font-size:10.5px;letter-spacing:.2em;color:var(--muted);margin:0 0 var(--s1);}
+  .overall .col{display:flex;flex-direction:column;}
+  .overall .ticks{margin-left:auto;padding-bottom:var(--s1);}
+
+  /* 目盛り（1本＝1節） */
+  .ticks{display:flex;gap:3px;align-items:flex-end;}
+  .ticks i{display:block;width:3px;height:15px;background:var(--rule);}
+  .ticks i.on{background:var(--accent);}
+  .ticks i.sp{width:7px;background:none;}
+  .ticks.mini i{width:2px;height:10px;}
+  .ticks.mini i.on{background:var(--ink);}
+
+  .part{margin:0 0 var(--s6);}
+  .part-head{
+    display:flex;align-items:center;gap:var(--s3);width:100%;
+    background:none;border:0;border-bottom:2px solid var(--ink);
+    padding:0 0 var(--s3);cursor:pointer;text-align:left;
+  }
+  .part-no{
+    font-family:var(--num);font-size:12px;letter-spacing:.16em;color:var(--accent);flex:none;
+  }
+  .part-ttl{font-family:var(--serif);font-size:23px;font-weight:400;margin:0;letter-spacing:.06em;}
+  .part-tag{
+    font-size:10px;letter-spacing:.16em;color:var(--muted);flex:none;
+    border:1px solid var(--rule);padding:2px var(--s2);
+  }
+  .part-state{margin-left:auto;font-size:11px;color:var(--muted);flex:none;letter-spacing:.06em;}
+  .part-head .ticks{flex:none;}
+  .part.complete .part-state{color:var(--accent);}
+  .part-caret{flex:none;font-size:9px;color:var(--muted);width:12px;text-align:center;
+              transition:transform .18s;}
+  .part.closed .part-caret{transform:rotate(-90deg);}
+  .seclist,.part-note{
+    overflow:hidden;
+    transition:max-height .25s ease,opacity .2s ease,margin .25s ease;
+    max-height:1200px;opacity:1;
+  }
+  .part.closed .seclist,.part.closed .part-note{
+    max-height:0;opacity:0;margin-top:0;margin-bottom:0;
+  }
+  .part-note{color:var(--muted);font-size:12px;margin:var(--s3) 0 0;line-height:1.9;max-width:52ch;}
+
+  .seclist{list-style:none;margin:var(--s2) 0 0;padding:0;}
+  .seclist li + li{border-top:1px solid var(--rule-fine);}
+  .secbtn{
+    width:100%;display:flex;align-items:center;gap:var(--s3);background:none;border:0;
+    padding:var(--s4) 0;text-align:left;cursor:pointer;font-size:15px;
+    transition:color .15s,padding-left .15s,background .15s;
+  }
+  .secbtn:hover{color:var(--accent);padding-left:var(--s2);}
+  /* 状態の丸：空＝未修了、塗り＝修了 */
+  .secbtn .mk{
+    flex:none;width:10px;height:10px;border-radius:50%;
+    border:1px solid var(--rule);background:none;transition:background .15s,border-color .15s;
+  }
+  .secbtn .n{font-family:var(--num);font-size:12.5px;color:var(--muted);flex:none;
+             width:2.8em;letter-spacing:.06em;font-variant-numeric:oldstyle-nums;}
+  .secbtn .t{flex:1;color:var(--ink-soft);}
+  .secbtn .done{flex:none;font-size:10px;color:var(--accent);letter-spacing:.18em;}
+  /* 修了した節 */
+  .secbtn.is-done .mk{background:var(--accent);border-color:var(--accent);}
+  .secbtn.is-done .n{color:var(--ink);}
+  .secbtn.is-done .t{color:var(--ink);font-weight:600;}
+
+  /* ============ 本文 ============ */
+  .sec-head{margin:var(--s6) 0 0;}
+  .sec-no{
+    font-family:var(--num);font-size:11.5px;letter-spacing:.28em;color:var(--accent);
+    font-variant-numeric:oldstyle-nums;
+  }
+  .sec-done{
+    display:inline-block;margin-left:var(--s3);font-size:10px;letter-spacing:.18em;
+    color:var(--paper);background:var(--accent);padding:2px var(--s2);vertical-align:2px;
+  }
+  .sec-ttl{font-family:var(--serif);font-size:2.1rem;font-weight:400;margin:var(--s3) 0 0;
+           line-height:1.3;letter-spacing:.03em;}
+  /* リード＝本文より一段上。導入の声 */
+  .lead{font-family:var(--serif);color:var(--ink);font-size:17.5px;line-height:1.95;
+        margin:var(--s5) 0 var(--s5);max-width:44ch;}
+  .goal{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+        padding:var(--s4) 0;margin:0 0 var(--s6);}
+  .goal h4{margin:0 0 var(--s2);font-size:10.5px;color:var(--muted);font-weight:400;letter-spacing:.2em;}
+  .goal p{margin:0;font-size:14px;line-height:1.95;color:var(--ink-soft);max-width:52ch;}
+
+  .body p{margin:var(--s5) 0;line-height:2.05;max-width:46ch;}
+  .body b{font-weight:600;}
+  .body .kw{font-weight:600;border-bottom:1px solid var(--accent);padding-bottom:1px;}
+
+  .box{border-left:2px solid var(--ink);padding:var(--s2) 0 var(--s2) var(--s5);
+       margin:var(--s5) 0;font-size:14px;color:var(--ink-soft);line-height:2;max-width:48ch;}
+  .box .eq{color:var(--ink);font-weight:600;}
+  .keybox{margin:var(--s6) 0;border-top:2px solid var(--ink);padding-top:var(--s3);}
+  .keybox h4{margin:0 0 var(--s2);font-size:10.5px;color:var(--accent);font-weight:400;letter-spacing:.2em;}
+  .keybox p{margin:0;font-size:16px;line-height:1.95;max-width:46ch;font-family:var(--serif);}
+  /* 傍注：本文から一段下げて、細い罫を添える */
+  .note{
+    font-size:12.5px;color:var(--muted);margin:var(--s5) 0 0;line-height:1.95;max-width:44ch;
+    padding-left:var(--s5);border-left:1px solid var(--rule-fine);
+  }
+
+  /* 譜例 —— 枠も影も置かない */
+  .staffwrap{margin:var(--s6) 0;}
+  .staffcap{
+    font-size:11.5px;color:var(--muted);margin:0 0 var(--s3);letter-spacing:.04em;line-height:1.7;
+    text-align:center;
+  }
+  .stage{display:flex;justify-content:center;overflow-x:auto;padding:var(--s1) 0;}
+  .stage svg{display:block;}
+  .snote.hl ellipse,.snote.hl line,.snote.hl path,.snote.hl rect,.snote.hl circle{
+    fill:var(--accent)!important;stroke:var(--accent)!important;}
+  .playrow{display:flex;gap:var(--s4);margin-top:var(--s3);justify-content:center;flex-wrap:wrap;}
+  .playbtn{
+    background:none;border:0;padding:var(--s1) 0;cursor:pointer;
+    color:var(--ink-soft);font-size:12.5px;letter-spacing:.06em;
+    border-bottom:1px solid var(--rule);transition:color .15s,border-color .15s;
+  }
+  .playbtn::before{content:'\25B6 ';font-size:9px;color:var(--accent);}
+  .playbtn:hover{color:var(--accent);border-bottom-color:var(--accent);}
+  .playbtn[disabled]{opacity:.4;cursor:default;}
+  .staffwrap.playing .staffcap{color:var(--accent);}
+
+  .tbl{width:100%;border-collapse:collapse;margin:var(--s5) 0;font-size:13.5px;}
+  .tbl th,.tbl td{border-bottom:1px solid var(--rule-fine);padding:var(--s3) var(--s1);
+                  text-align:center;vertical-align:middle;}
+  .tbl thead th{border-bottom:1px solid var(--ink);color:var(--muted);font-weight:400;
+                font-size:10.5px;letter-spacing:.14em;}
+  .tbl td.nm{text-align:left;white-space:nowrap;}
+  .tbl td.val{font-family:var(--num);font-size:14.5px;}
+  .tbl .gl{display:flex;justify-content:center;align-items:center;min-height:46px;}
+
+  .beatgrid{display:flex;gap:var(--s2);margin:var(--s5) 0;flex-wrap:wrap;}
+  .bt{flex:1;min-width:56px;border-top:1px solid var(--rule);padding:var(--s3) 0 0;text-align:center;}
+  .bt .num{font-family:var(--num);font-size:21px;color:var(--ink-soft);}
+  .bt .lv{font-size:10.5px;color:var(--muted);margin-top:var(--s1);letter-spacing:.08em;}
+  .bt.strong{border-top:2px solid var(--accent);}
+  .bt.strong .num{color:var(--accent);}
+  .bt.mid{border-top:1px solid var(--ink);}
+  .bt.mid .num{color:var(--ink);}
+
+  .cnt{display:flex;gap:var(--s1);margin:var(--s4) 0;flex-wrap:wrap;}
+  .cnt span{flex:1;min-width:34px;text-align:center;padding:var(--s2) 0;font-size:14px;
+            font-family:var(--serif);color:var(--muted);border-top:1px solid var(--rule-fine);}
+  .cnt span.on{color:var(--accent);border-top:2px solid var(--accent);}
+
+  /* ============ 演習 ============ */
+  .quiz{margin:var(--s7) 0 0;}
+
+  /* 入口：本文とはっきり別のものに見せる */
+  .qstart{
+    background:var(--card);border:1px solid var(--rule);border-top:4px solid var(--accent);
+    padding:var(--s5);
+  }
+  .qstart h3{
+    font-family:var(--serif);font-size:19px;font-weight:400;margin:0 0 var(--s3);
+    letter-spacing:.22em;color:var(--accent);
+  }
+  .qstart p{margin:0 0 var(--s5);font-size:13.5px;color:var(--ink-soft);line-height:1.95;max-width:46ch;}
+  .qstart p b{color:var(--ink);}
+  .qstart .qnav{margin-top:0;}
+  /* 主ボタンは朱の面。小さく強い */
+  .btn.on-ink{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.on-ink:hover{background:var(--accent-deep,#75252d);border-color:var(--accent-deep,#75252d);color:#fff;}
+  .btn.on-ink.ghost{background:none;border-color:var(--rule);color:var(--ink-soft);}
+  .btn.on-ink.ghost:hover{background:none;border-color:var(--ink);color:var(--ink);}
+
+  /* 出題中：紙の上に一枚の札を置く */
+  .qcard{
+    background:var(--card);border:1px solid var(--rule);border-top:4px solid var(--accent);
+    box-shadow:5px 5px 0 var(--paper-deep);
+  }
+  .qbanner{
+    display:flex;align-items:center;gap:var(--s3);
+    background:var(--paper-deep);color:var(--ink);padding:var(--s3) var(--s5);
+    border-bottom:1px solid var(--rule);
+  }
+  .qbanner h3{
+    font-family:var(--serif);font-size:14px;font-weight:400;margin:0;letter-spacing:.28em;
+    color:var(--accent);
+  }
+  .qmeta{
+    font-family:var(--num);font-size:13px;color:var(--ink-soft);margin-left:auto;letter-spacing:.1em;
+  }
+  .qbody{padding:var(--s5);}
+  .qprog{display:flex;gap:var(--s1);margin:0 0 var(--s5);}
+  .qprog i{flex:1;height:3px;background:var(--rule);}
+  .qprog i.on{background:var(--ink-soft);}
+  .qprog i.cur{background:var(--accent);}
+  .qtext{
+    font-family:var(--serif);font-size:19px;line-height:1.85;margin:0 0 var(--s5);max-width:44ch;
+  }
+  .opts{display:grid;gap:var(--s2);}
+  .opt{
+    display:flex;align-items:flex-start;gap:var(--s4);width:100%;
+    background:var(--paper);border:1px solid var(--rule);
+    padding:var(--s4);font-size:15px;text-align:left;cursor:pointer;line-height:1.7;
+    transition:border-color .12s,background .12s,transform .08s;
+  }
+  .opt .kbd{
+    flex:none;font-family:var(--num);font-size:13px;color:var(--ink-soft);
+    width:1.6em;height:1.6em;line-height:1.5em;text-align:center;
+    border:1px solid var(--rule);background:var(--card);
+  }
+  .opt:hover:not([disabled]){border-color:var(--ink);background:var(--card);}
+  .opt:active:not([disabled]){transform:translateY(1px);}
+  .opt[disabled]{cursor:default;}
+  .opt[disabled]:not(.pick-ok):not(.pick-ng):not(.reveal){opacity:.4;}
+  /* 選んだもの・正解を、面と記号ではっきり示す */
+  .opt.pick-ok{background:var(--good-soft);border-color:var(--good);border-left-width:5px;}
+  .opt.pick-ok .kbd{background:var(--good);border-color:var(--good);color:#fff;}
+  .opt.pick-ng{background:var(--bad-soft);border-color:var(--bad);border-left-width:5px;}
+  .opt.pick-ng .kbd{background:var(--bad);border-color:var(--bad);color:#fff;}
+  .opt.reveal{background:var(--good-soft);border-color:var(--good);border-left-width:5px;}
+  .opt.reveal .kbd{background:var(--good);border-color:var(--good);color:#fff;}
+  .opt .tagmk{margin-left:auto;flex:none;font-size:11px;letter-spacing:.14em;align-self:center;}
+  .opt.pick-ok .tagmk,.opt.reveal .tagmk{color:var(--good);}
+  .opt.pick-ng .tagmk{color:var(--bad);}
+
+  .ans{
+    margin:var(--s5) 0 0;font-size:14px;line-height:1.95;max-width:46ch;
+    padding:var(--s4) var(--s4) var(--s4) var(--s5);
+  }
+  .ans.ok{background:var(--good-soft);border-left:5px solid var(--good);}
+  .ans.ng{background:var(--bad-soft);border-left:5px solid var(--bad);}
+  .ans .verdict{
+    display:block;font-family:var(--serif);font-size:16px;margin-bottom:var(--s2);letter-spacing:.14em;
+  }
+  .ans.ok .verdict{color:var(--good);}
+  .ans.ng .verdict{color:var(--bad);}
+  .qnav{display:flex;gap:var(--s4);margin-top:var(--s5);align-items:center;flex-wrap:wrap;}
+
+  /* 聴き取り問題 */
+  .earbox{
+    background:var(--paper-deep);border-left:4px solid var(--accent);
+    padding:var(--s4) var(--s5);margin:0 0 var(--s5);text-align:center;
+  }
+  .earlbl{margin:0 0 var(--s3);font-size:12.5px;color:var(--ink-soft);letter-spacing:.06em;}
+  .earbtn{background:none;border:1px solid var(--ink);padding:var(--s2) var(--s5);font-size:13px;}
+  .earbtn::before{content:'\266A ';color:var(--accent);}
+  .earbtn:hover{background:var(--ink);color:var(--paper);}
+  .earbox.playing{border-left-color:var(--good);}
+  .earbox.playing .earlbl{color:var(--accent);}
+  .opts-staff{gap:var(--s3);}
+  .opt-staff{align-items:center;padding:var(--s3) var(--s4);}
+  .ministaff{flex:1;display:flex;justify-content:center;overflow:hidden;}
+  .ministaff svg{max-width:100%;height:auto;transform:scale(.86);transform-origin:left center;}
+
+  .result{padding:var(--s2) 0 0;text-align:center;}
+  .result .pct{
+    font-family:var(--num);font-size:4rem;line-height:1;margin:0;color:var(--accent);
+    font-variant-numeric:lining-nums;
+  }
+  .result .big{font-size:14px;margin:var(--s3) 0 var(--s1);color:var(--ink);letter-spacing:.1em;}
+  .result .sm{font-size:13px;color:var(--muted);margin:0 auto var(--s5);line-height:1.95;max-width:40ch;}
+  .result .qnav{justify-content:center;}
+
+  .btn{
+    background:none;border:1px solid var(--ink);border-radius:0;
+    font-size:13.5px;padding:var(--s3) var(--s5);cursor:pointer;letter-spacing:.08em;
+    transition:background .15s,color .15s;
+  }
+  .btn:hover{background:var(--ink);color:var(--paper);}
+  .btn.ghost{border-color:var(--rule);color:var(--ink-soft);}
+  .btn.ghost:hover{background:none;border-color:var(--ink);color:var(--ink);}
+  .btn:active{transform:translateY(1px);transition-duration:.05s;}
+  .playbtn:active{opacity:.6;}
+  .secbtn:active{opacity:.7;}
+  .kbdhint{font-size:11px;color:var(--muted);letter-spacing:.06em;}
+
+
+  .secnav{display:flex;gap:var(--s4);margin:var(--s7) 0 0;border-top:1px solid var(--rule);padding-top:var(--s4);}
+  .secnav button{
+    flex:1;background:none;border:0;padding:var(--s3) 0;cursor:pointer;text-align:left;
+    font-size:13px;color:var(--ink-soft);transition:color .15s;
+  }
+  .secnav button:hover{color:var(--accent);}
+  .secnav button .dir{transition:letter-spacing .15s;}
+  .secnav button:hover .dir{letter-spacing:.22em;}
+  .secnav button .dir{display:block;font-size:10.5px;color:var(--muted);letter-spacing:.16em;margin-bottom:var(--s1);}
+  .secnav button.next{text-align:right;}
+
+  footer{
+    text-align:center;color:var(--muted);font-size:11px;letter-spacing:.06em;
+    margin-top:var(--s8);padding-top:var(--s4);border-top:1px solid var(--rule-fine);
+  }
+
+  .fade{animation:fade .22s ease-out;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  /* スマホでは本文を少し読みやすく */
+  @media (max-width:520px){
+    .body p{font-size:15px;line-height:2;margin:var(--s4) 0;}
+    .ttl #logo{width:230px;}
+    body.reading .ttl #logo{width:130px;}
+    .sec-ttl{font-size:1.5rem;}
+    .lead{font-size:15px;}
+    .qtext{font-size:15.5px;}
+    .result .pct{font-size:2.8rem;}
+    .secbtn{font-size:14.5px;}
+    .part-ttl{font-size:19px;}
+    .part-head .ticks{display:none;}
+    .overall .big{font-size:2.2rem;}
+    .overall .ticks i{width:2px;}
+    .kbdhint{display:none;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;animation:none!important;}
+  }
+  .hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="ttl" id="appTitle"><svg id="logo"></svg><span class="sr">Woodpecker</span></h1>
+    <p class="ttl-sub" id="appSub">拍・音の長さ・ノリを順番に</p>
+    <hr class="headrule">
+  </header>
+
+  <div class="topbar hidden" id="topbar">
+    <div class="topbar-in">
+      <button class="backbtn" id="backBtn" type="button">← 目次</button>
+      <span class="crumb" id="crumb"></span>
+    </div>
+    <div class="readbar"><i id="readFill"></i></div>
+  </div>
+
+  <main id="view"></main>
+
+  <footer>百合ヶ丘ギター教室 SingingBirds ／ 単一ファイル・オフライン動作</footer>
+</div>
+
+<script>
+
+"use strict";
+/* ============================================================
+   リズトレ  Note-Value Trainer
+   8タブ：①穴うめ ②ながさ当て ③なまえ当て ④耳コピ ⑤音価てんびん ⑥小節けいさつ ⑦腕だめし ⑧解説
+   単一HTML・オフライン・iOS WKWebView 配慮
+============================================================ */
+
+/* ---------- 1拍=48tick 統一 ---------- */
+const T = 48; // ticks per beat
+const DUR = {
+  whole:     {tick:192, name:'全音符',      short:'全',   dots:0, base:'whole'},
+  dotHalf:   {tick:144, name:'付点二分音符', short:'付2分', dots:1, base:'half'},
+  half:      {tick:96,  name:'二分音符',    short:'2分',  dots:0, base:'half'},
+  dotQuarter:{tick:72,  name:'付点四分音符', short:'付4分', dots:1, base:'quarter'},
+  quarter:   {tick:48,  name:'四分音符',    short:'4分',  dots:0, base:'quarter'},
+  dotEighth: {tick:36,  name:'付点八分音符', short:'付8分', dots:1, base:'eighth'},
+  eighth:    {tick:24,  name:'八分音符',    short:'8分',  dots:0, base:'eighth'},
+  sixteenth: {tick:12,  name:'十六分音符',  short:'16分', dots:0, base:'sixteenth'},
+};
+const beats = t => t/T;
+const beatStr = t => {
+  const b = t/T;
+  if(Number.isInteger(b)) return b+'拍';
+  return (b).toString()+'拍';
+};
+
+/* ============================================================
+   拍子（メーター）ヘルパー
+   sig は [分子, 分母]。分母4＝単純拍子（四分音符＝1拍）、
+   分母8で分子が3の倍数＝複合拍子（付点四分音符＝1拍、八分3つでひとまとまり）。
+   ENABLE_68 を false にすると、6/8 が解説からも練習からも一括で外れる。
+============================================================ */
+const ENABLE_68 = true;
+const SIG_SIMPLE = [[2,4],[3,4],[4,4]];
+const SIG_ALL = () => ENABLE_68 ? SIG_SIMPLE.concat([[6,8]]) : SIG_SIMPLE.slice();
+const isCompound = sig => !!sig && sig[1]===8 && sig[0]%3===0;
+// 1小節ぶんのtick（全音符＝192tick）
+const barTickOf = sig => sig[0]*(192/sig[1]);
+// 拍（脈）1つぶんのtick。複合拍子は付点四分＝72tick
+const pulseTickOf = sig => isCompound(sig) ? (192/sig[1])*3 : (192/sig[1]);
+// 拍の数。6/8 は「2拍を3つ割り」なので2
+const pulseCountOf = sig => isCompound(sig) ? sig[0]/3 : sig[0];
+// 1小節の長さの説明ラベル
+function barLenLabel(sig){
+  if(isCompound(sig)) return `八分音符${sig[0]}つ（＝${pulseCountOf(sig)}拍を3つずつ）`;
+  return `${sig[0]}拍`;
+}
+// 連桁をまとめる単位(tick)。実際の記譜習慣に合わせる
+function beamUnitOf(sig, hasSixteenth){
+  if(isCompound(sig)) return pulseTickOf(sig);   // 複合拍子：八分3つ（付点四分）ごと
+  if(hasSixteenth) return T;                     // 十六分をふくむときは1拍ごと
+  if(sig && sig[0]===3) return T;                // 3拍子は1拍ごと
+  return 2*T;                                    // 4拍子・2拍子は2拍ごと
+}
+// タイ分割（拍でまとめた形）は四分＝1拍の単純拍子でのみ有効
+
+/* ---------- 音符SVG描画 ---------- */
+// 1音符を単体で描く（凡例・選択肢用）
+function noteGlyph(key, opt={}){
+  const d = DUR[key]; if(!d) return '';
+  const w = opt.w||34, h = opt.h||46, col = opt.color||'var(--ink)';
+  const rest = opt.rest;
+  const cx = 13, baseY = 30; // 符頭中心
+  let g='';
+  if(rest){
+    // 単体表示時はグリフ枠の中央に光学センタリング
+    g = restPath(d.base, w/2, h/2-(REST_VCENTER[d.base]||16), col, d.dots, true);
+  }else{
+    // 符頭
+    const filled = (d.base==='eighth'||d.base==='sixteenth'||d.base==='quarter');
+    g += `<g transform="translate(${cx},${baseY}) rotate(-20)">
+      <ellipse cx="0" cy="0" rx="6" ry="4.5" fill="${filled?col:'none'}"${filled?'':` stroke="${col}" stroke-width="1.8"`}/></g>`;
+    // 符幹（二分・四分・八分・十六）: 全音符は無し
+    if(d.base!=='whole'){
+      g += `<line x1="${cx+5.4}" y1="${baseY-1}" x2="${cx+5.4}" y2="6" stroke="${col}" stroke-width="1.7"/>`;
+    }
+    // 符鉤
+    if(d.base==='eighth'){
+      g += flag(cx+5.4,6,col,0);
+    }else if(d.base==='sixteenth'){
+      g += flag(cx+5.4,6,col,0)+flag(cx+5.4,6,col,7);
+    }
+    // 付点
+    if(d.dots){ g += `<circle cx="${cx+13}" cy="${baseY+1}" r="1.9" fill="${col}"/>`; }
+  }
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+function flag(x,y,col,dy){
+  // ことりノーム drawFlags と同一のベジェ形状
+  return `<path d="M ${x} ${y+dy} C ${x+10} ${y+dy+3} ${x+11} ${y+dy+10} ${x+6} ${y+dy+16}
+    C ${x+11} ${y+dy+9} ${x+9} ${y+dy+4} ${x} ${y+dy+5} Z" fill="${col}"/>`;
+}
+function restPath(base,x,y,col,dots,standalone){
+  // 座標規約: y+16 が五線の第3線（中央線）。lineGap=8 → 五線は y+0 / y+8 / y+16 / y+24 / y+32
+  // 休符の形はことりノーム drawRestSVG と同一。bY をことりノームの baseY 相当（=y+33）に置いて移植し、
+  // 五線の座標系（y+16=中央線）に合わせて上下位置を調整する。
+  let p='';
+  const bY = y+33;
+  if(base==='whole'){        // 全休符：第4線（上から2本目）から「ぶら下がる」
+    p=`<rect x="${x-5.5}" y="${y+8}" width="11" height="4.2" fill="${col}"/>`;
+    // 単体表示（五線なし）では、接する第4線を短く添えて二分休符と区別できるようにする
+    if(standalone) p+=`<line x1="${x-9}" y1="${y+8}" x2="${x+9}" y2="${y+8}" stroke="${col}" stroke-width="1.3"/>`;
+  }else if(base==='half'){   // 二分休符：第3線（中央線）の上に「乗る」
+    p=`<rect x="${x-5.5}" y="${y+11.8}" width="11" height="4.2" fill="${col}"/>`;
+    if(standalone) p+=`<line x1="${x-9}" y1="${y+16}" x2="${x+9}" y2="${y+16}" stroke="${col}" stroke-width="1.3"/>`;
+  }else if(base==='quarter'){ // 四分休符（ことりノーム流の稲妻）
+    const t=bY-34;
+    p=`<path d="M ${x-3} ${t} L ${x+4} ${t+8} L ${x-3} ${t+17} L ${x+5} ${t+26} Q ${x-4} ${t+22} ${x+2} ${t+33} Q ${x-6} ${t+26} ${x-1} ${t+20} L ${x-7} ${t+12} Q ${x+1} ${t+15} ${x-4} ${t+6} Z" fill="${col}"/>`;
+  }else if(base==='eighth'){ // 八分休符（ことりノーム流：玉＋カール＋斜線）
+    const t=bY-30;
+    p=`<circle cx="${x-1}" cy="${t+2}" r="3" fill="${col}"/>`
+     +`<path d="M ${x-1} ${t+2} Q ${x+4} ${t+1} ${x+5} ${t-2}" fill="none" stroke="${col}" stroke-width="1.6"/>`
+     +`<line x1="${x+4}" y1="${t+1}" x2="${x-4}" y2="${t+22}" stroke="${col}" stroke-width="1.8"/>`;
+  }else{                     // 十六分休符（ことりノーム流：玉2つ＋斜線）
+    const t=bY-32;
+    p=`<circle cx="${x-1}" cy="${t+2}" r="2.8" fill="${col}"/>`
+     +`<path d="M ${x-1} ${t+2} Q ${x+4} ${t+1} ${x+5} ${t-2}" fill="none" stroke="${col}" stroke-width="1.5"/>`
+     +`<circle cx="${x-3}" cy="${t+11}" r="2.8" fill="${col}"/>`
+     +`<path d="M ${x-3} ${t+11} Q ${x+2} ${t+10} ${x+3} ${t+7}" fill="none" stroke="${col}" stroke-width="1.5"/>`
+     +`<line x1="${x+4}" y1="${t+1}" x2="${x-6}" y2="${t+26}" stroke="${col}" stroke-width="1.8"/>`;
+  }
+  if(dots){ p+=`<circle cx="${x+8.5}" cy="${y+12}" r="1.9" fill="${col}"/>`; } // 付点は第3間相当
+  return p;
+}
+// 休符ごとの光学的中心（単体グリフの上下センタリング用）
+const REST_VCENTER={whole:10, half:14, quarter:16, eighth:14, sixteenth:15};
+
+// 五線譜に音符列を描く（穴埋め・警察・聴音の答え合わせ用）
+/* ---------- 音価分割＋タイ（ことりノーム流） ----------
+   拍・小節をまたぐ音価を「拍をまたがぬ単一音価」に分割し、2つ目以降にtieを付ける。
+   ことりノームは16分=1unit・拍=4unitのunit系。リズトレは16分=12tick・拍=48tickなので u = tick/12 で換算する。 */
+function scoreKey(base,dot){
+  if(base==='whole') return 'whole';
+  if(base==='half') return dot?'dotHalf':'half';
+  if(base==='quarter') return dot?'dotQuarter':'quarter';
+  if(base==='eighth') return dot?'dotEighth':'eighth';
+  return 'sixteenth';
+}
+function scoreSplitTick(startTick,lenTick,totalTick){
+  const BU=4, SINGLE=new Set([16,12,8,6,4,3,2,1]);
+  const TBL=[{u:16,base:'whole',dot:false},{u:12,base:'half',dot:true},{u:8,base:'half',dot:false},{u:6,base:'quarter',dot:true},{u:4,base:'quarter',dot:false},{u:3,base:'eighth',dot:true},{u:2,base:'eighth',dot:false},{u:1,base:'sixteenth',dot:false}];
+  const start=startTick/12, len=lenTick/12, notes=[];
+  // 小節のまん中（偶数拍子のみ）を「音符でまたいではいけない」境界として保護する。
+  // 4/4→8unit（3拍目）／2/4→4unit（2拍目）。3拍子など奇数拍はまん中が拍の途中に来るため保護しない。
+  const totalU = totalTick ? Math.round(totalTick/12) : 0;
+  const beats = totalU/BU;
+  const mid = (totalU>0 && Number.isInteger(beats) && beats%2===0) ? totalU/2 : null;
+  const emit=(s,l)=>{
+    if(SINGLE.has(l)){
+      const io=s%BU;
+      // 小節先頭(0)から始まる音符（全音符・付点二分など）は許容。途中から始まってまん中をまたぐ音符のみ分割。
+      const crossesMid = (mid!=null && s>0 && s<mid && s+l>mid);
+      if((io+l<=BU || io===0) && !crossesMid){ notes.push(TBL.find(n=>n.u===l)); return; }
+    }
+    const io=s%BU, toEnd=io===0?BU:(BU-io), first=Math.min(l,toEnd);
+    if(!SINGLE.has(first)){ let r=first; while(r>0){ const nt=TBL.find(n=>n.u<=r); notes.push(nt); r-=nt.u; } }
+    else notes.push(TBL.find(n=>n.u===first));
+    const rem=l-first; if(rem>0) emit(s+first,rem);
+  };
+  emit(start,len);
+  return notes.map(n=>({key:scoreKey(n.base,n.dot), tick:n.u*12}));
+}
+function scoreSplitRestTick(startTick,lenTick,totalTick){
+  const BU=4, baseU={whole:16,half:8,quarter:4,eighth:2,sixteenth:1};
+  const start=startTick/12, len=lenTick/12, total=totalTick?Math.round(totalTick/12):0;
+  if(total && start===0 && len===total) return [{key:'whole', tick:16*12}];
+  const out=[], halfUnit=BU*2;
+  const push=(name,dot)=>{ const u=baseU[name]*(dot?1.5:1); out.push({key:scoreKey(name,dot), tick:u*12}); };
+  const fillBeat=(off,length)=>{
+    if(off===0 && length===BU){ push('quarter',false); return; }
+    let s=off, e=off+length;
+    while(s<e){
+      const eStart=Math.floor(s/2)*2;
+      if(s===eStart && s+2<=e){ push('eighth',false); s+=2; }
+      else { const segEnd=Math.min(eStart+2,e); for(let k=s;k<segEnd;k++) push('sixteenth',false); s=segEnd; }
+    }
+  };
+  let s=start, end=start+len;
+  while(s<end){
+    if(total && s%halfUnit===0 && s+halfUnit<=end && s+halfUnit<=total){ push('half',false); s+=halfUnit; continue; }
+    const beatStart=Math.floor(s/BU)*BU, segEnd=Math.min(beatStart+BU,end);
+    fillBeat(s-beatStart, segEnd-s); s=segEnd;
+  }
+  return out;
+}
+// 音符列を「単一音価＋タイ」へ展開。空欄(blank)は分割しない（穴埋めの答えを守る）。
+function expandTies(seq,totalTick){
+  const out=[]; let acc=0;
+  for(let idx=0; idx<seq.length; idx++){
+    const n=seq[idx];
+    const tick=n.tick||(DUR[n.key]||{tick:48}).tick;
+    if(n.blank){ out.push({...n,tick,tie:false,_src:idx}); acc+=tick; continue; }
+    if(n.rest){
+      const pcs=scoreSplitRestTick(acc,tick,totalTick);
+      if(pcs.length) pcs.forEach(p=>out.push({key:p.key,rest:true,mark:n.mark,tick:p.tick,tie:false,_src:idx}));
+      else out.push({...n,tick,tie:false,_src:idx});
+      acc+=tick; continue;
+    }
+    const pcs=scoreSplitTick(acc,tick,totalTick);
+    if(pcs.length) pcs.forEach((p,i)=>out.push({key:p.key,mark:n.mark,tick:p.tick,tie:i>0,_src:idx}));
+    else out.push({...n,tick,tie:false,_src:idx});
+    acc+=tick;
+  }
+  return out;
+}
+
+function staffSVG(seq, opt={}){
+  // seq: [{key, rest, blank, mark}]
+  const pad=18, top=14, height=86;
+  const totalTick = opt.totalTick || seq.reduce((s,n)=>s+(n.tick||DUR[n.key].tick),0) || 192;
+  // 幅は tick に比例（音価バー的発想）
+  const meterSig = opt.meterSig || null;   // [分子,分母] 例[4,4]
+  const SIG = meterSig ? 24 : 0;            // 拍子記号ぶんの左スペース
+  // 拍・小節をまたぐ音価を単一音価＋タイに展開（ことりノーム流）。
+  // 出題では分割せず元のまま。回答（答え合わせ）表示のときだけ opt.tie:true で有効化する。
+  if(opt.tie===true) seq = expandTies(seq, totalTick);
+  const ticksArr = seq.map(n=>n.tick||(DUR[n.key]||{tick:48}).tick);
+  const sumTicks = ticksArr.reduce((a,b)=>a+b,0) || totalTick;
+  // --- tick比例配置：1拍あたり一定幅で並べ、音符を時間位置（拍）に置く ---
+  //   拍が均等に区切られ、再生バーが一定速度で進む。各音符幅は音価に比例。
+  const beatW = 66;                                   // 1拍あたりの幅(px)
+  const barBeats = Math.max(sumTicks, totalTick)/T;   // 表示する拍数（不足小節は末尾に空白）
+  const usable = Math.max(barBeats*beatW, 320);
+  const noteOff = 9;                                  // スロット頭からの音符位置（一定＝バー等速）
+  const widths = ticksArr.map(tk => (tk/(barBeats*T))*usable);
+  let x = pad + SIG;
+  const y0 = top; // 五線最上
+  const lineGap=8;
+  // --- 終止線の位置 ---
+  // opt.barTick 指定時（正解表示用）：超過小節では終止線を本来の拍位置に置き、
+  // 超過分の音符が終止線をはみ出して見えるようにする
+  let barX = usable + pad + SIG, overZone = '';
+  if(opt.barTick && sumTicks > opt.barTick){
+    let acc = 0, bx = pad + SIG;
+    for(let i=0;i<seq.length;i++){
+      if(acc + ticksArr[i] >= opt.barTick){
+        bx += widths[i] * ((opt.barTick - acc) / ticksArr[i]);
+        break;
+      }
+      acc += ticksArr[i]; bx += widths[i];
+    }
+    barX = bx;
+    overZone = `<rect x="${barX}" y="${y0-8}" width="${usable+pad+SIG-barX+4}" height="${4*lineGap+16}" fill="var(--bad)" opacity="0.08"/>`+
+      `<text x="${Math.min((barX+usable+pad+SIG)/2, usable+pad+SIG-6)}" y="${y0+4*lineGap+18}" text-anchor="middle" font-size="10" fill="var(--bad)">はみ出し</text>`;
+  }
+  let lines='';
+  for(let i=0;i<5;i++){ const yy=y0+i*lineGap; lines+=`<line x1="0" x2="${usable+pad*2+SIG}" y1="${yy}" y2="${yy}" stroke="var(--stave)" stroke-width="1"/>`;}
+  // 拍子記号（分子・分母を縦2段。譜頭の開始線の直後に置く）
+  const sigSVG = meterSig ? (
+    `<text x="${pad+SIG/2}" y="${y0+lineGap+3}" text-anchor="middle" font-family="var(--sans)" font-weight="700" font-size="16" fill="var(--stave)">${meterSig[0]}</text>`+
+    `<text x="${pad+SIG/2}" y="${y0+3*lineGap+4}" text-anchor="middle" font-family="var(--sans)" font-weight="700" font-size="16" fill="var(--stave)">${meterSig[1]}</text>`
+  ) : '';
+  // 小節線
+  // 拍頭ガイド（薄い破線）：拍をまたぐ連桁でも拍の切れ目が一目で分かるように
+  let beatGuides='';
+  {
+    // 音符がまだ無い（空の五線）ときは、小節幅を均等割りして拍の位置を出す
+    const tickToX=(tk)=>{
+      if(!seq.length) return pad+SIG+usable*(tk/Math.max(totalTick,1));
+      let acc=0, xx=pad+SIG;
+      for(let i=0;i<seq.length;i++){ if(tk<acc+ticksArr[i]) return xx+widths[i]*((tk-acc)/ticksArr[i]); acc+=ticksArr[i]; xx+=widths[i]; }
+      return xx;
+    };
+    // 複合拍子では「八分3つ」のまとまりに、それ以外は1拍ごとにガイドを引く
+    const gUnit = isCompound(meterSig) ? pulseTickOf(meterSig) : T;
+    const nGuide=Math.max(1,Math.round(totalTick/gUnit));
+    for(let b=1;b<nGuide;b++){
+      const gx=tickToX(b*gUnit);
+      if(gx>pad+SIG+2 && gx<barX-2){
+        beatGuides+=`<line x1="${gx.toFixed(1)}" x2="${gx.toFixed(1)}" y1="${y0}" y2="${y0+4*lineGap}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 3" opacity="0.75"/>`;
+      }
+    }
+  }
+  lines=`<rect x="0" y="0" width="${usable+pad*2+SIG}" height="${height}" fill="none"/>`+overZone+
+        `<line x1="${pad-6}" x2="${pad-6}" y1="${y0}" y2="${y0+4*lineGap}" stroke="var(--stave)" stroke-width="1.4"/>`+
+        sigSVG+beatGuides+
+        `<line x1="${barX}" x2="${barX}" y1="${y0}" y2="${y0+4*lineGap}" stroke="${overZone?'var(--bad)':'var(--stave)'}" stroke-width="1.4"/>`+lines;
+  let notes='';
+  const midY=y0+2*lineGap;
+  // --- 符頭x座標を事前計算（連桁のグルーピングに使用） ---
+  const cxArr=[]; { let xx=pad+SIG; for(let i=0;i<seq.length;i++){ cxArr.push(xx+noteOff); xx+=widths[i]; } }
+  // 各音符の開始tick（拍位置判定用）
+  const startTick=[]; { let acc=0; for(let i=0;i<seq.length;i++){ startTick.push(acc); acc+=ticksArr[i]; } }
+  // --- 連桁グループの決定（opt.beam時） ---
+  // まとめ単位は beamUnitOf() が拍子から決める。
+  //   4/4・2/4 = 八分は2拍ごと（八分4つで1本）／3/4 = 1拍ごと／6/8 = 八分3つごと。
+  //   十六分をふくむ連桁は1拍ごとに区切り、拍を明確にする（複合拍子は3つ割りを優先）。
+  const beamOf=new Array(seq.length).fill(null);
+  if(opt.beam){
+    // パス1：連続する連桁可能音符（八分・十六分）をひとまとまりに（休符・空欄・四分以上で切る）
+    const runs=[]; let run=[];
+    for(let i=0;i<seq.length;i++){
+      const n=seq[i], d=DUR[n.key]||{base:'quarter',tick:48};
+      const beamable = !n.rest && !n.blank && (d.base==='eighth'||d.base==='sixteenth');
+      if(beamable) run.push(i); else { if(run.length) runs.push(run); run=[]; }
+    }
+    if(run.length) runs.push(run);
+    // パス2：各runを beamUnitOf() の単位で分割する。
+    runs.forEach(r=>{
+      const hasSixteenth = r.some(gi=>(DUR[seq[gi].key]||{}).base==='sixteenth');
+      const unit = beamUnitOf(meterSig, hasSixteenth);
+      let sub=[];
+      const flushSub=()=>{ if(sub.length>=2){ const g=sub.slice(); g.forEach(gi=>beamOf[gi]=g); } sub=[]; };
+      r.forEach(gi=>{
+        if(sub.length && Math.floor(startTick[gi]/unit)!==Math.floor(startTick[sub[0]]/unit)) flushSub();
+        sub.push(gi);
+      });
+      flushSub();
+    });
+  }
+  // 符幹の先端y（符頭中心midYからの相対）。連桁時はグループ内で統一
+  const STEM_TOP=-24;
+  seq.forEach((n,idx)=>{
+    const d=DUR[n.key]||{base:'quarter',dots:0,tick:48};
+    const slotW = widths[idx];
+    const cx=x+noteOff;
+    const col = n.mark==='ok'?'var(--good)':n.mark==='ng'?'var(--bad)':'var(--ink)';
+    const beamed = beamOf[idx];
+    const src = (n._src!=null) ? n._src : idx;   // ハイライト用：元の音符番号
+    if(n.blank){
+      notes+=`<rect x="${x+6}" y="${y0-6}" width="${slotW-14}" height="${4*lineGap+12}" rx="7"
+        fill="var(--accent-soft)" stroke="var(--accent)" stroke-dasharray="4 3" stroke-width="1.3"/>
+        <text x="${cx}" y="${midY+4}" text-anchor="middle" font-family="Georgia,serif" font-size="18" fill="var(--accent)">?</text>`;
+    }else if(n.rest){
+      notes+=`<g class="snote" data-src="${src}" data-cx="${cx.toFixed(1)}" transform="translate(${cx-15},${midY-16})">${restPath(d.base,15,0,col,d.dots)}</g>`;
+    }else{
+      const filled=(d.base==='eighth'||d.base==='sixteenth'||d.base==='quarter');
+      notes+=`<g class="snote" data-src="${src}" data-cx="${cx.toFixed(1)}" transform="translate(${cx},${midY})">
+        <g transform="rotate(-20)"><ellipse rx="6" ry="4.5" fill="${filled?col:'none'}"${filled?'':` stroke="${col}" stroke-width="1.8"`}/></g>`;
+      if(d.base!=='whole') notes+=`<line x1="5.4" y1="-1" x2="5.4" y2="${STEM_TOP}" stroke="${col}" stroke-width="1.8"/>`;
+      // 連桁対象は個別フラッグを描かない（ビームで後からつなぐ）
+      if(!beamed){
+        if(d.base==='eighth') notes+=flag(5.4,STEM_TOP,col,0);
+        if(d.base==='sixteenth') notes+=flag(5.4,STEM_TOP,col,0)+flag(5.4,STEM_TOP,col,7);
+      }
+      if(d.dots) notes+=`<circle cx="13" cy="1" r="2" fill="${col}"/>`;
+      notes+=`</g>`;
+    }
+    x+=slotW;
+  });
+  // --- 連桁本体の描画（符幹先端どうしを横棒でつなぐ） ---
+  if(opt.beam){
+    const seen=new Set();
+    const beamY = midY + STEM_TOP;              // ビーム上辺のy（符幹先端）
+    const stemX = i => cxArr[i] + 5.4; // 符幹は回転させていないため x=5.4（符頭中心cx基準）ぴったりに合わせる
+    seq.forEach((n,idx)=>{
+      const g=beamOf[idx];
+      if(!g || seen.has(g)) return; seen.add(g);
+      const col = n.mark==='ok'?'var(--good)':n.mark==='ng'?'var(--bad)':'var(--ink)';
+      const x1=stemX(g[0]), x2=stemX(g[g.length-1]);
+      // 1次ビーム（八分＝全員が持つ）
+      notes+=`<line x1="${x1.toFixed(1)}" y1="${beamY}" x2="${x2.toFixed(1)}" y2="${beamY}" stroke="${col}" stroke-width="3.4" stroke-linecap="butt"/>`;
+      // 2次ビーム（十六分のみ。連続区間ごとに短い横棒、単独なら内側へ跳ねる）
+      const y2nd=beamY+5;
+      for(let j=0;j<g.length;j++){
+        const gi=g[j]; const dd=DUR[seq[gi].key];
+        if(dd.base!=='sixteenth') continue;
+        const prev16 = j>0 && DUR[seq[g[j-1]].key].base==='sixteenth';
+        const next16 = j<g.length-1 && DUR[seq[g[j+1]].key].base==='sixteenth';
+        if(next16){
+          notes+=`<line x1="${stemX(gi).toFixed(1)}" y1="${y2nd}" x2="${stemX(g[j+1]).toFixed(1)}" y2="${y2nd}" stroke="${col}" stroke-width="3.4"/>`;
+        }else if(!prev16){
+          // 前後とも十六分でない単独 → 部分ビーム（stub）は拍の内側を向く：
+          // 拍の後半にある十六分は左（拍頭側）、前半にある十六分は右（次の音側）。
+          // 例）付点八分＋十六分→左向き／十六分＋付点八分→右向き。
+          const posInBeat = startTick[gi] % T;
+          const dir = (posInBeat >= T/2) ? -1 : 1;
+          notes+=`<line x1="${stemX(gi).toFixed(1)}" y1="${y2nd}" x2="${(stemX(gi)+dir*6).toFixed(1)}" y2="${y2nd}" stroke="${col}" stroke-width="3.4"/>`;
+        }
+      }
+    });
+  }
+  // タイ弧線（ことりノーム流）：分割で生じた同音を弧でつなぐ
+  seq.forEach((n,idx)=>{
+    if(!n.tie || idx===0) return;
+    const px=cxArr[idx-1], cx=cxArr[idx];
+    const col = n.mark==='ok'?'var(--good)':n.mark==='ng'?'var(--bad)':'var(--ink)';
+    notes+=`<path d="M ${(px+3).toFixed(1)} ${midY+8} Q ${((px+cx)/2).toFixed(1)} ${midY+16} ${(cx-3).toFixed(1)} ${midY+8}" fill="none" stroke="${col}" stroke-width="1.2"/>`;
+  });
+  return `<svg width="${usable+pad*2+SIG}" height="${height}" viewBox="0 0 ${usable+pad*2+SIG} ${height}" xmlns="http://www.w3.org/2000/svg">${lines}${notes}</svg>`;
+}
+
+/* ---------- Web Audio クリック ---------- */
+let AC=null;
+function audio(){
+  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC=null; } }
+  if(AC && AC.state==='suspended'){ AC.resume(); }
+  return AC;
+}
+// kind:'count' … カウントイン用の低くこもった音（メトロノームの木の音に近い）
+// kind:'note'  … 問題のリズム用の高く明るい音
+// 同じ音だと「どこからが問題か」が分からなくなるため、必ず音色を変える。
+function click(time, accent, kind){
+  const ac=audio(); if(!ac) return;
+  const isCount = kind==='count';
+  const len = isCount?0.05:0.03, sr=ac.sampleRate, buf=ac.createBuffer(1,Math.round(sr*len),sr);
+  const data=buf.getChannelData(0);
+  const decay = isCount?10:6;
+  for(let i=0;i<data.length;i++){ data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,decay); }
+  const src=ac.createBufferSource(); src.buffer=buf;
+  const flt=ac.createBiquadFilter(); flt.type='bandpass';
+  flt.frequency.value = isCount ? (accent?1100:820) : (accent?2600:1800);
+  flt.Q.value = isCount ? 1.8 : 0.9;
+  const g=ac.createGain(); g.gain.value = isCount ? (accent?0.55:0.4) : (accent?0.95:0.6);
+  src.connect(flt); flt.connect(g); g.connect(ac.destination);
+  src.start(time);
+}
+// tickシーケンスをテンポで再生
+let playTimer=null;
+function playSequence(seq, bpm, opt={}){
+  const ac=audio(); if(!ac){ opt.onEnd&&opt.onEnd(); return; }
+  const spb=60/bpm;                 // 1拍秒
+  const lead=0.12;
+  const countBeats = opt.countIn||0;  // カウントイン拍数（0なら無し）
+  const cUnit = opt.countUnitTick || T;   // カウント1つぶんのtick（6/8は付点四分＝72）
+  const cspb = spb*(cUnit/T);
+  const countSec = countBeats*cspb;
+  const t0=ac.currentTime+lead+countSec;   // 本編の開始時刻（カウント後）
+  // --- カウントイン：各拍でクリック音＋数字コールバック ---
+  // 最後の1拍はわざと鳴らさない。拍は流れたまま「間」ができ、問題の頭がはっきり立つ。
+  if(countBeats>0){
+    const silentLast = countBeats>=3;
+    for(let b=0;b<countBeats;b++){
+      const ct=ac.currentTime+lead+b*cspb;
+      if(!(silentLast && b===countBeats-1)) click(ct, b===0, 'count');  // 頭拍だけアクセント
+      if(opt.onCount){
+        const remain=countBeats-b;           // 「4・3・2・1」と減っていく数字
+        const delayMs=(ct-ac.currentTime)*1000;
+        setTimeout(()=>opt.onCount(remain, false), Math.max(0,delayMs));
+      }
+    }
+    // カウント終了＝本編開始の合図（「スタート！」用）
+    if(opt.onCount){
+      const delayMs=(t0-ac.currentTime)*1000;
+      setTimeout(()=>opt.onCount(0, true), Math.max(0,delayMs));
+    }
+  }
+  let acc=0;
+  const events=[];
+  seq.forEach((n,i)=>{
+    // n は文字列キー（'quarter'等）またはオブジェクト（{key,tick,rest}）の両方を許容
+    const d = (typeof n==='string') ? DUR[n] : (DUR[n.key]||null);
+    const tick = (typeof n==='object' && n.tick!=null) ? n.tick : (d?d.tick:T);
+    const isRest = (typeof n==='object') && n.rest;
+    const onsetT = t0+(acc/T)*spb;
+    if(!isRest) events.push({t:onsetT, accent:i===0});
+    // 各音符・休符の頭で、いま鳴っている位置を通知（ハイライト用）
+    if(opt.onStep){ const delayMs=(onsetT-ac.currentTime)*1000; setTimeout(()=>opt.onStep(i), Math.max(0,delayMs)); }
+    acc+=tick;
+  });
+  events.forEach(e=>click(e.t, e.accent&&opt.accentFirst, 'note'));
+  const totalSec=(acc/T)*spb;
+  clearTimeout(playTimer);
+  playTimer=setTimeout(()=>{ opt.onEnd&&opt.onEnd(); }, (lead+countSec+totalSec+0.15)*1000);
+}
+
+// 譜面を鳴らしつつ、再生位置を示す縦バー（プレイヘッド）をなめらかに滑らせ、
+// 通過する音符もハイライトする。container 内の .stage svg すべてにバーを乗せる（2段対応）。
+function playStaffBar(seq, bpm, container, onDone){
+  const SVGNS='http://www.w3.org/2000/svg';
+  const spb=60/bpm, lead=0.12;
+  const totalTick=seq.reduce((s,n)=>s+(n.tick||(DUR[n.key]||{tick:48}).tick),0);
+  const total=(totalTick/T)*spb;
+  const clearHL=()=>container.querySelectorAll('.snote.hl').forEach(e=>e.classList.remove('hl'));
+  // 各段：再生時刻→x座標 の区分線形の点列と、バー線を用意
+  const bars=Array.from(container.querySelectorAll('.stage svg')).map(svg=>{
+    const vb=(svg.getAttribute('viewBox')||'0 0 300 86').split(' ').map(Number);
+    const pts=[]; let acc=0;
+    seq.forEach((n,i)=>{
+      const tick=n.tick||(DUR[n.key]||{tick:48}).tick;
+      const el=svg.querySelector(`.snote[data-src="${i}"]`);
+      const x=el?parseFloat(el.getAttribute('data-cx')):null;
+      pts.push({t:(acc/T)*spb, x}); acc+=tick;
+    });
+    pts.push({t:(acc/T)*spb, x:vb[2]-16});   // 譜面右端
+    for(let k=0;k<pts.length;k++){ if(pts[k].x==null) pts[k].x=(k>0?pts[k-1].x:vb[0]+20); }
+    const line=document.createElementNS(SVGNS,'line');
+    line.setAttribute('y1','7'); line.setAttribute('y2',String(vb[3]-7));
+    line.setAttribute('stroke','var(--accent)'); line.setAttribute('stroke-width','2.4');
+    line.setAttribute('stroke-linecap','round'); line.setAttribute('opacity','0.6');
+    line.setAttribute('x1',String(pts[0].x)); line.setAttribute('x2',String(pts[0].x));
+    svg.appendChild(line);
+    return {line, pts};
+  });
+  const xAt=(pts,t)=>{ if(t<=pts[0].t) return pts[0].x;
+    for(let k=0;k<pts.length-1;k++){ if(t<=pts[k+1].t){ const a=pts[k],b=pts[k+1],r=(t-a.t)/((b.t-a.t)||1); return a.x+(b.x-a.x)*r; } }
+    return pts[pts.length-1].x; };
+  let raf=null, startT=(window.performance&&performance.now?performance.now():Date.now()), done=false;
+  const finish=()=>{ if(done) return; done=true; if(raf) cancelAnimationFrame(raf);
+    bars.forEach(b=>{ if(b.line.parentNode) b.line.parentNode.removeChild(b.line); }); clearHL(); onDone&&onDone(); };
+  const now=()=>(window.performance&&performance.now?performance.now():Date.now());
+  const animate=()=>{ const el=(now()-startT)/1000 - lead; const tt=Math.max(0,el);
+    bars.forEach(b=>{ const x=xAt(b.pts,tt); b.line.setAttribute('x1',String(x)); b.line.setAttribute('x2',String(x)); });
+    if(el<total+0.15) raf=requestAnimationFrame(animate); };
+  raf=requestAnimationFrame(animate);
+  playSequence(seq, bpm, {
+    accentFirst:true,
+    onStep:(i)=>{ clearHL(); container.querySelectorAll(`.snote[data-src="${i}"]`).forEach(e=>e.classList.add('hl')); },
+    onEnd:finish
+  });
+}
+
+/* ---------- 汎用ユーティリティ ---------- */
+const rnd = arr => arr[Math.floor(Math.random()*arr.length)];
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+// 指定tick合計になる音符列をランダム生成（バックトラック）
+function fillBar(targetTick, pool){
+  const keys = pool || ['whole','half','dotHalf','quarter','dotQuarter','eighth','dotEighth','sixteenth'];
+  const items = keys.map(k=>({k,tick:DUR[k].tick})).sort((a,b)=>b.tick-a.tick);
+  const out=[];
+  function bt(rem){
+    if(rem===0) return true;
+    for(const it of shuffle(items)){
+      if(it.tick<=rem){ out.push(it.k); if(bt(rem-it.tick)) return true; out.pop(); }
+    }
+    return false;
+  }
+  bt(targetTick);
+  return out;
+}
+
+// 拍子に合った1小節を生成する。
+// 複合拍子(6/8)は「八分3つ＝1拍」のまとまりごとに埋め、拍のまとまりが崩れないようにする。
+function fillBarSig(sig, pool){
+  if(!isCompound(sig)) return fillBar(barTickOf(sig), pool);
+  const unit = pulseTickOf(sig);                       // 72tick＝付点四分
+  const usable = pool.filter(k=>DUR[k].tick<=unit);
+  const use = usable.length ? usable : ['eighth','quarter','dotQuarter'];
+  let out=[];
+  for(let i=0;i<pulseCountOf(sig);i++){
+    let g=fillBar(unit, use);
+    if(!g.length) g=['dotQuarter'];
+    out=out.concat(g);
+  }
+  return out;
+}
+
+/* ---- 直前の問題との重複回避 ----
+   各モードのキー(mode番号など)ごとに直前の「署名」を覚えておき、
+   gen() が同じ署名を返すあいだは作り直す（最大tries回）。 */
+const _lastSig = {};
+function uniqueGen(tag, gen, sig, tries=12){
+  let result = gen();
+  for(let i=0; i<tries && sig(result)===_lastSig[tag]; i++){
+    result = gen();
+  }
+  _lastSig[tag] = sig(result);
+  return result;
+}
+
+</script>
+<script>
+const BRAVURA={"noteheadWhole":{"d":"M216 125C83 125 0 70 0 2C0 -65 57 -125 206 -125C370 -125 422 -68 422 2C422 73 309 125 216 125ZM111 63C122 98 159 103 190 103C259 103 314 29 314 -31C314 -38 313 -44 312 -50C307 -75 293 -92 268 -98C258 -101 247 -102 237 -102C228 -102 220 -101 211 -98C194 -93 178 -84 164 -72C156 -65 149 -58 143 -50C123 -27 108 7 108 39C108 47 109 55 111 63Z","bb":[0,-125,422,125]},"noteheadHalf":{"d":"M97 -125C262 -125 295 9 295 42C295 93 254 125 196 125C47 125 0 10 0 -42C0 -95 42 -125 97 -125ZM173 -46C128 -76 97 -87 75 -87C54 -87 42 -76 35 -64C32 -58 29 -51 29 -44C29 -22 51 5 120 45C170 74 201 84 221 84C240 84 251 75 258 63C261 57 264 51 264 44C264 24 243 0 173 -46Z","bb":[0,-125,295,125]},"noteheadBlack":{"d":"M97 -125C186 -125 295 -43 295 42C295 93 255 125 198 125C88 125 0 44 0 -42C0 -94 43 -125 97 -125Z","bb":[0,-125,295,125]},"repeatLeft":{"d":"M192 0H228V1000H192ZM0 0H125V1000H0ZM316 572C344 572 366 594 366 622C366 650 344 672 316 672C289 672 266 650 266 622C266 594 289 572 316 572ZM316 320C344 320 366 342 366 370C366 397 344 420 316 420C289 420 266 397 266 370C266 342 289 320 316 320Z","bb":[0,0,366,1000]},"repeatRight":{"d":"M175 0V1000H139V0ZM367 1000H242V0H367ZM51 680C23 680 1 658 1 630C1 603 23 580 51 580C78 580 101 603 101 630C101 658 78 680 51 680ZM51 428C23 428 1 406 1 378C1 350 23 328 51 328C78 328 101 350 101 378C101 406 78 428 51 428Z","bb":[1,0,367,1000]}};
+/* ============================================================
+   ロゴ（Woodpecker）
+   Bravura（SIL OFL 1.1）の符頭を輪郭データとして使用。
+   W ／ 音符4つ ／ ecker を左から順に置くので、重なりは起きない。
+============================================================ */
+const LOGO_SPU=250, LOGO_STEM_TH=0.12, LOGO_NS='http://www.w3.org/2000/svg';
+function logoEl(n,a){const e=document.createElementNS(LOGO_NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function logoFin(v){return (typeof v==='number'&&isFinite(v))?v:null;}
+function logoGW(n,sp){const b=BRAVURA[n].bb;return (b[2]-b[0])*sp/LOGO_SPU;}
+function logoGlyph(n,left,cy,sp,col){
+  const g=BRAVURA[n], s=sp/LOGO_SPU, dx=-g.bb[0]*s;
+  const w=logoEl('g',{transform:`translate(${(left+dx).toFixed(2)},${cy.toFixed(2)}) scale(${s.toFixed(5)},${(-s).toFixed(5)})`,
+                      fill:col,'fill-rule':'evenodd'});
+  w.appendChild(logoEl('path',{d:g.d})); return w;
+}
+function drawLogo(svg){
+  if(!svg) return;
+  const F=48, FONT="Georgia,'Times New Roman',serif", FW=600;
+  const COL='var(--ink)', STAFF='var(--rule)', STEM=2.0;
+  const NOTES=['noteheadWhole','noteheadWhole','noteheadHalf','noteheadBlack'];
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const TA={'font-family':FONT,'font-size':F,'font-weight':FW};
+  // 計測用の文字は、失敗しても必ず取り除く
+  const meas=s=>{
+    let t=null, w=null;
+    try{ t=logoEl('text',Object.assign({x:0,y:0},TA)); t.textContent=s;
+         svg.appendChild(t); w=logoFin(t.getComputedTextLength()); }
+    catch(e){}
+    finally{ if(t&&t.parentNode) t.parentNode.removeChild(t); }
+    if(w) return w;
+    const A={W:.96,e:.50,c:.46,k:.53,r:.40};
+    return s.split('').reduce((a,c)=>a+(A[c]||.5)*F,0);
+  };
+  let xh=null, probe=null;
+  try{ probe=logoEl('text',Object.assign({x:0,y:0},TA)); probe.textContent='x';
+       svg.appendChild(probe); const b=probe.getBBox(); xh=logoFin(b&&b.height); }
+  catch(e){}
+  finally{ if(probe&&probe.parentNode) probe.parentNode.removeChild(probe); }
+  const sp=(xh!==null && xh>F*0.30 && xh<F*0.70)?xh:F*0.48;
+  const gap=F*0.02, wW=meas('W'), wTail=meas('ecker'), wN=NOTES.map(n=>logoGW(n,sp));
+  const asc=F*0.72, dsc=F*0.21, stemLen=STEM*sp;
+  const topMost=Math.min(-stemLen,-(asc-sp/2),-2*sp), botMost=Math.max(stemLen,(dsc+sp/2),2*sp);
+  const m=F*0.16, base=-topMost+m+sp/2, yc=base-sp/2, x0=F*0.3;
+  let x=x0;
+  svg.appendChild(logoEl('text',Object.assign({x:x.toFixed(2),y:base.toFixed(2),fill:COL},TA))).textContent='W';
+  x+=wW+gap;
+  NOTES.forEach((n,i)=>{
+    svg.appendChild(logoGlyph(n,x,yc,sp,COL));
+    if(n!=='noteheadWhole'){
+      const up=(n==='noteheadHalf');
+      const sx=up ? x+wN[i]-LOGO_STEM_TH*sp/2 : x+LOGO_STEM_TH*sp/2;
+      svg.appendChild(logoEl('line',{x1:sx.toFixed(2),y1:yc.toFixed(2),x2:sx.toFixed(2),
+        y2:(up?yc-stemLen:yc+stemLen).toFixed(2),stroke:COL,'stroke-width':(LOGO_STEM_TH*sp).toFixed(2)}));
+    }
+    x+=wN[i]+gap;
+  });
+  svg.appendChild(logoEl('text',Object.assign({x:x.toFixed(2),y:base.toFixed(2),fill:COL},TA))).textContent='ecker';
+  const right=x+wTail;
+  const pad=sp*0.7, L=x0-pad, R=right+pad, top=yc-2*sp;
+  for(let i=0;i<5;i++) svg.insertBefore(logoEl('line',{x1:L.toFixed(1),y1:(top+i*sp).toFixed(1),
+    x2:R.toFixed(1),y2:(top+i*sp).toFixed(1),stroke:STAFF,'stroke-width':(0.13*sp).toFixed(2)}),svg.firstChild);
+  const vy=Math.min(yc+topMost,base-asc,top)-m, vb=Math.max(yc+botMost,base+dsc,top+4*sp)+m;
+  svg.setAttribute('viewBox',`${(L-m).toFixed(1)} ${vy.toFixed(1)} ${(R-L+m*2).toFixed(1)} ${(vb-vy).toFixed(1)}`);
+  svg.setAttribute('role','img');
+  svg.setAttribute('aria-label','Woodpecker');
+}
+
+</script>
+<script>
+
+/* ============================================================
+   第2部の内容
+============================================================ */
+const P2 = [
+{
+  no:1, title:'音符と休符のかたち',
+  lead:'音符は、いくつかの部品の組み合わせです。形のルールが分かれば、初めて見る音符でも長さが読めます。',
+  goal:'符頭・符幹・符鉤の役割が分かる。休符の形も見分けられる。',
+  blocks:[
+    {t:'p', h:'音符の部品には名前があります。丸い部分が <span class="kw">符頭</span>（たま）、そこから伸びる棒が <span class="kw">符幹</span>、棒の先に付く旗が <span class="kw">符鉤</span>（はた）。この3つの有無で長さが決まります。'},
+    {t:'box', h:'白い符頭だけ＝<span class="eq">全音符</span>　／　白い符頭＋棒＝<span class="eq">二分音符</span>　／　黒い符頭＋棒＝<span class="eq">四分音符</span>　／　旗1本＝<span class="eq">八分音符</span>　／　旗2本＝<span class="eq">十六分音符</span>'},
+    {t:'p', h:'順番に見ていくと、ルールは意外とシンプルです。<b>符頭が白から黒になると半分</b>、<b>旗が1本増えるごとにまた半分</b>。長い音符ほど部品が少なく、短い音符ほどにぎやかになります。'},
+    {t:'html', h:'<p class="staffcap">音符</p>'},
+    {t:'durtable', rest:false},
+    {t:'p', h:'休符も同じ長さのものが1つずつ対応しています。形は音符と似ていないので、こちらは覚えるしかありません。ただし、全休符と二分休符には見分けるコツがあります。'},
+    {t:'box', h:'<span class="eq">全休符</span>は線から<b>ぶら下がる</b>　／　<span class="eq">二分休符</span>は線の上に<b>乗る</b>'},
+    {t:'html', h:'<p class="staffcap">休符</p>'},
+    {t:'durtable', rest:true},
+    {t:'p', h:'ひとつ注意があります。上の表で全休符を「4拍」としているのは 4/4 での話です。全休符は <b>1小節ぶんの休み</b> を表す記号としても使われ、その場合の長さは拍子によって変わります。くわしくは6節で扱います。'},
+    {t:'key', h:'符頭が黒くなると半分、旗が1本増えるとまた半分。休符は全＝ぶら下がる、二分＝乗る。'},
+    {t:'note', h:'◦ ふつうの楽譜では符幹の向き（上か下か）が音の高さで変わりますが、リズムだけを示す譜面では上向きに統一します。この教材の譜例もすべて上向きです。'}
+  ],
+  quiz:[
+    {q:'旗（符鉤）が2本ついている音符はどれですか。', opts:['八分音符','十六分音符','四分音符','二分音符'],
+      a:1, exp:'旗1本が八分音符、2本が十六分音符です。1本増えるごとに長さは半分になります。'},
+    {q:'五線の線からぶら下がるように書かれる休符はどれですか。', opts:['全休符','二分休符','四分休符','八分休符'],
+      a:0, exp:'全休符はぶら下がり、二分休符は線の上に乗ります。位置で見分けます。'},
+    {q:'符頭が白く、棒がついている音符はどれですか。', opts:['全音符','二分音符','四分音符','八分音符'],
+      a:1, exp:'全音符は白い符頭だけで棒がありません。棒が付くと二分音符になります。'}
+  ]
+},
+{
+  no:2, title:'付点',
+  lead:'符頭の右にちょこんと付く点。これひとつで、音符は1.5倍になります。',
+  goal:'付点音符の長さが出せる。付点が何のためにあるのかも分かる。',
+  blocks:[
+    {t:'p', h:'音符の右横に点が付いたものを <span class="kw">付点音符</span> と呼びます。長さは <b>元の長さ＋その半分</b>。つまり1.5倍です。'},
+    {t:'box', h:'<span class="eq">付点二分音符</span>＝2拍＋1拍＝<b>3拍</b>　／　<span class="eq">付点四分音符</span>＝1拍＋0.5拍＝<b>1.5拍</b>　／　<span class="eq">付点八分音符</span>＝0.5拍＋0.25拍＝<b>0.75拍</b>'},
+    {t:'p', h:'半分ずつ割っていく仕組みでは、1拍・0.5拍・0.25拍しか作れません。1.5拍のような長さは、四分音符と八分音符をタイでつなげば書けますが、それだと音符が2つになります。付点は <b>「元の長さ＋その半分」を1つの音符で表せる</b> 記号です。'},
+    {t:'p', h:'いちばんよく出会うのが、付点四分音符と八分音符の組み合わせ。合わせて2拍になります。'},
+    {t:'staff', cap:'付点四分＋八分で2拍、そこに四分が2つで1小節',
+      seq:['dotQuarter','eighth','quarter','quarter'], opt:{meterSig:[4,4]},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'付点八分音符と十六分音符の組み合わせも定番です。0.75拍＋0.25拍でちょうど1拍。歯切れのよい、はねたような感じになります。'},
+    {t:'staff', cap:'付点八分＋十六分で1拍。これを2回くり返して2拍',
+      seq:['dotEighth','sixteenth','dotEighth','sixteenth','half'], opt:{meterSig:[4,4], beam:true},
+      plays:[{bpm:76, label:'聴く'}]},
+    {t:'p', h:'休符にも付点が付きます。考え方はまったく同じで、付点四分休符なら1.5拍のお休みです。'},
+    {t:'key', h:'付点は「元の長さ＋その半分」で1.5倍。半分ずつの仕組みでは作れない長さを埋めるための書き方です。'},
+    {t:'note', h:'◦ 点が2つ付く <b>複付点</b> もあります。「元の長さ＋半分＋そのまた半分」で1.75倍。クラシックでは見かけますが、ポップスではまれです。'}
+  ],
+  quiz:[
+    {q:'付点四分音符の長さは何拍ですか。', opts:['1拍','1.5拍','2拍','3拍'],
+      a:1, exp:'四分音符1拍に、その半分の0.5拍を足して1.5拍です。'},
+    {q:'付点八分音符と十六分音符を合わせると、何拍になりますか。', opts:['0.5拍','0.75拍','1拍','1.5拍'],
+      a:2, exp:'0.75拍＋0.25拍でちょうど1拍。1拍の中に収まる組み合わせです。'},
+    {q:'付点が付くと、音符の長さはどうなりますか。', opts:[
+      '2倍になる','1.5倍になる','半分になる','拍子によって変わる'],
+      a:1, exp:'元の長さに、その半分を足します。だから1.5倍です。'},
+    {q:'いま鳴ったリズムは、どれですか。', opts:['A','B','C','D'], a:0,
+      exp:'付点四分＋八分。長い音のあとに短い音が続きます。',
+      ear:{bpm:80, opt:{meterSig:[4,4], beam:true}, choices:[
+        ['dotQuarter','eighth','quarter','quarter'],
+        ['quarter','quarter','quarter','quarter'],
+        ['eighth','dotQuarter','quarter','quarter'],
+        ['half','quarter','quarter']
+      ]}}
+  ]
+},
+{
+  no:3, title:'タイ',
+  lead:'同じ高さの音符どうしをつなぐ弧。2つの音符を、1つの長い音として鳴らします。',
+  goal:'タイが付いた音の弾き方が分かる。スラーとの違いも見分けられる。',
+  blocks:[
+    {t:'p', h:'<span class="kw">タイ</span> は、隣り合う同じ高さの音符を弧でつなぐ記号です。つないだら <b>後ろの音符は弾き直さず、前の音を伸ばす</b>。2つ書いてあっても、鳴らすのは1回だけです。'},
+    {t:'p', h:'では、なぜわざわざ2つに分けて書くのか。理由は2つあります。'},
+    {t:'box', h:'① <span class="eq">小節線をまたぐ長さ</span>は、1つの音符では書けないから　／　② <span class="eq">拍の頭</span>が見えなくなるのを防ぐため'},
+    {t:'p', h:'①はそのままです。小節線は必ず引かなければならないので、小節をまたいで伸びる音は線の手前でいったん切り、次の小節の音符とタイでつなぎます。4/4 の4拍めから次の小節の1拍めまで伸びる音なら、四分音符2つをタイでつないだ形になります。'},
+    {t:'p', h:'②は読みやすさの問題です。下は2拍めから3拍めまで伸びる、2拍ぶんの音。二分音符1つで書いてしまうと、小節の真ん中がどこか分かりにくくなります。そこで拍の切れ目で分け、タイでつなぎます。'},
+    {t:'staff', cap:'2拍めから3拍めへ伸びる音。真ん中で分けてタイでつなぐ',
+      seq:['quarter',{key:'half',tick:96},'quarter'],
+      opt:{meterSig:[4,4], totalTick:192, tie:true},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'鳴らす音は二分音符1つで書いた場合とまったく同じです。それでもこう書くのは、<b>読む人に拍の切れ目を見せるため</b>。演奏の指示ではなく、譜面としての親切さの問題です。'},
+    {t:'p', h:'よく混同されるのが <span class="kw">スラー</span>。見た目はどちらも弧ですが、意味は別ものです。'},
+    {t:'box', h:'<span class="eq">タイ</span>＝<b>同じ高さ</b>をつなぐ。音は1つ　／　<span class="eq">スラー</span>＝<b>違う高さ</b>にかかる。なめらかに演奏する'},
+    {t:'p', h:'ギターで言えば、タイは「弾き直さない」、スラーは「ハンマリングやプリングでつなぐ」。弧の両端の音が同じ高さかどうかを見れば、すぐ区別できます。'},
+    {t:'key', h:'タイは同じ高さの音をつなぐ記号。弾くのは1回だけ。違う高さにかかっている弧はスラーです。'},
+    {t:'note', h:'◦ この教材の譜例では、拍や小節をまたぐ音は自動的にタイの形に分けて表示しています。長い音がどこで拍をまたいでいるか、弧の位置で確かめられます。'}
+  ],
+  quiz:[
+    {q:'タイでつながれた2つの音符は、何回弾きますか。', opts:['1回','2回','拍子による','テンポによる'],
+      a:0, exp:'後ろの音符は弾き直さず、前の音を伸ばします。鳴らすのは1回だけです。'},
+    {q:'タイとスラーを見分ける手がかりは何ですか。', opts:[
+      '弧の向き','弧の長さ','両端の音の高さが同じかどうか','小節線をまたぐかどうか'],
+      a:2, exp:'同じ高さをつないでいればタイ、違う高さにかかっていればスラーです。'},
+    {q:'小節をまたいで伸びる音に、タイが必要になるのはなぜですか。', opts:[
+      '音が長すぎると読みにくいから','小節線を越える音符は1つでは書けないから','拍子が変わるから','演奏が難しくなるから'],
+      a:1, exp:'小節線は必ず引くため、またぐ音は線の手前で切ってタイでつなぎます。'}
+  ]
+},
+{
+  no:4, title:'連桁のルール',
+  lead:'旗を横棒でつなぐ書き方。見た目の都合ではなく、拍のまとまりを見せるための決まりです。',
+  goal:'拍子に合わせた連桁の切り方が分かる。横棒の本数から音の長さも読める。',
+  blocks:[
+    {t:'p', h:'八分音符や十六分音符が続くとき、旗を1本ずつ描くかわりに横棒でつなぎます。これが <span class="kw">連桁</span>（れんこう・ビーム）です。'},
+    {t:'p', h:'横棒の本数は、旗の本数とそのまま同じです。<b>八分音符なら1本、十六分音符なら2本</b>。棒の数を数えれば、音価が分かります。'},
+    {t:'p', h:'切り方の原則はひとつだけ。<b>拍のまとまりが目に見えるように区切る</b>ことです。ここから挙げるのは基本的な例で、拍のまとまりが見えやすいように区切ったもの。実際の記譜では、拍子・フレーズ・アクセント・読みやすさによって変わります。まず4/4。八分音符は2拍ずつ（1・2拍めで1本、3・4拍めで1本）にまとめるのが基本です。'},
+    {t:'staff', cap:'4/4 — 八分音符4つが1本の横棒でつながる',
+      seq:['eighth','eighth','eighth','eighth','half'], opt:{meterSig:[4,4], beam:true},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'同じ八分音符4つでも、3/4 では1拍ごとに「2つ＋2つ」と切るのが基本です。拍のまとまりが変われば、切り方も変わります。'},
+    {t:'staff', cap:'3/4 — 2つずつに分かれる',
+      seq:['eighth','eighth','eighth','eighth','quarter'], opt:{totalTick:144, meterSig:[3,4], beam:true},
+      plays:[{bpm:96, label:'聴く'}]},
+    {t:'p', h:'十六分音符が入ると、横棒は2本になります。細かくなるぶん拍の頭を見失いやすいので、<b>1拍ごと</b>に区切ることが多い。ただしこれも決まりではなく、フレーズによってはまたいで書きます。'},
+    {t:'staff', cap:'4/4 — 十六分音符は1拍ごとに区切る。横棒は2本',
+      seq:['sixteenth','sixteenth','sixteenth','sixteenth','half','quarter'], opt:{meterSig:[4,4], beam:true},
+      plays:[{bpm:76, label:'聴く'}]},
+    {t:'p', h:'6/8 のような複合拍子では、1拍が八分音符3つぶんなので、<b>3つずつ</b>でひとまとまり。連桁の切れ目が、そのまま拍の切れ目になります。'},
+    {t:'staff', cap:'6/8 — 3つずつにまとまる',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{totalTick:144, meterSig:[6,8], beam:true},
+      plays:[{bpm:76, unit:'dotQuarter', label:'♩.＝76 で聴く'}]},
+    {t:'key', h:'横棒の本数＝旗の本数。切り方の原則は「拍のまとまりが見えるように」。基本形は、4/4の八分が2拍ずつ、十六分が1拍ごと、6/8が3つずつです。'},
+    {t:'note', h:'◦ ここに挙げたのは目安です。シンコペーションや歌詞の切れ目を見せたいときなど、あえて外して書くこともあります。ただし「読みやすさのために外す」のであって、なんとなく外すわけではありません。'}
+  ],
+  quiz:[
+    {q:'十六分音符の連桁は、横棒が何本になりますか。', opts:['1本','2本','3本','4本'],
+      a:1, exp:'旗の本数と同じです。八分が1本、十六分が2本になります。'},
+    {q:'4/4 で八分音符が8つ並ぶとき、基本的にはどう区切りますか。', opts:[
+      '8つまとめて1本','4つずつ2本','2つずつ4本','区切らず旗のまま'],
+      a:1, exp:'2拍ずつ、つまり八分音符4つずつにまとめます。'},
+    {q:'連桁の切り方を決めている考え方はどれですか。', opts:[
+      '音符の数をそろえる','拍のまとまりを見せる','ページの幅に合わせる','音の高さでそろえる'],
+      a:1, exp:'読み手に拍の切れ目が見えるように区切る。これが原則です。'}
+  ]
+},
+{
+  no:5, title:'三連符',
+  lead:'1拍を3つに割る書き方。半分ずつ割っていく仕組みの、外側にあります。',
+  goal:'三連符の長さが分かる。普通の分割との違いを声に出して数え分けられる。',
+  blocks:[
+    {t:'p', h:'ここまでの音符は、すべて半分ずつに割れていく仲間でした。四分が八分2つ、八分が十六分2つ。この仕組みでは <b>1拍を3等分することができません</b>。'},
+    {t:'p', h:'そこで使うのが <span class="kw">三連符</span>。本来2つ入る場所に3つ詰め込む、という書き方です。八分音符3つを連桁でまとめ、上か下に「3」と書きます。'},
+    {t:'staff', cap:'八分の三連符。3つで1拍、そのあとに四分音符が2つ',
+      seq:[{key:'eighth',tick:16},{key:'eighth',tick:16},{key:'eighth',tick:16},'quarter','quarter','quarter'],
+      opt:{meterSig:[4,4], beam:true}, tuplets:[{from:0, to:2, label:'3'}],
+      plays:[{bpm:76, label:'聴く'}]},
+    {t:'p', h:'比べてみます。下はふつうの八分音符2つ。同じ1拍のなかに入る数が違うだけで、詰まり方がまったく変わります。'},
+    {t:'staff', cap:'ふつうの八分音符。2つで1拍',
+      seq:['eighth','eighth','quarter','quarter','quarter'], opt:{meterSig:[4,4], beam:true},
+      plays:[{bpm:76, label:'聴く'}]},
+    {t:'p', h:'数え方は「<b>タ タ タ</b>」。3つの音を均等に並べます。ここで数字や「と」を混ぜないのがコツで、八分の「と」と位置が違うため、同じ音を使うと体の中で衝突します。'},
+    {t:'box', h:'八分＝<span class="eq">1 と ／ 2 と</span>（1拍に2つ）　／　三連＝<span class="eq">タ タ タ</span>（1拍に3つ）'},
+    {t:'p', h:'言葉に置き換えるなら <b>「バ・ナ・ナ」</b>。3音が均等に並ぶので、三連符そのものになります。第1部6節で見た方法が、そのまま使えるところです。'},
+    {t:'p', h:'三連符1つぶんの長さは、1拍の3分の1。数字にすると割り切れませんが、演奏では「3つで1拍」とだけ覚えておけば足ります。ぴったり等分に並べることが大事で、最後の1つが詰まりやすいので注意してください。'},
+    {t:'key', h:'三連符は1拍を3等分する書き方。半分ずつの仕組みでは作れない分割を、数字の3で示します。'},
+    {t:'note', h:'◦ 三連符の1つめと3つめだけを鳴らし、真ん中を抜くと、はねたリズムになります。これがシャッフルのもとになる形です。第3部で扱います。<br>◦ 2拍を3等分する2拍3連、1拍を6等分する六連符など、仲間はほかにもあります。考え方はすべて同じです。'}
+  ],
+  quiz:[
+    {q:'八分の三連符は、いくつで1拍になりますか。', opts:['2つ','3つ','4つ','6つ'],
+      a:1, exp:'本来2つ入る場所に3つ入れる書き方なので、3つで1拍です。'},
+    {q:'三連符に書かれている「3」は、何を示していますか。', opts:[
+      'テンポ','3拍めであること','本来2つのところに3つ入っていること','3小節続くこと'],
+      a:2, exp:'通常の分割ではないことを示す数字です。'},
+    {q:'三連符が必要になるのはなぜですか。', opts:[
+      '譜面を見やすくするため','半分ずつ割る仕組みでは3等分できないため','テンポを速く見せるため','小節の数を合わせるため'],
+      a:1, exp:'全→二分→四分→八分という仕組みは2で割り続けるものなので、3等分は表せません。'},
+    {q:'いま鳴ったのは、1拍を3つに割ったものですか、2つですか。', opts:['A','B','C','D'], a:1,
+      exp:'1拍が3等分。三連符です。均等に3つ並んでいます。',
+      ear:{bpm:76, opt:{meterSig:[4,4], beam:true}, choices:[
+        ['eighth','eighth','quarter','quarter','quarter'],
+        [{key:'eighth',tick:16},{key:'eighth',tick:16},{key:'eighth',tick:16},'quarter','quarter','quarter'],
+        ['sixteenth','sixteenth','sixteenth','sixteenth','quarter','quarter','quarter'],
+        ['dotEighth','sixteenth','quarter','quarter','quarter']
+      ]}}
+  ]
+},
+{
+  no:6, title:'休符の書き方',
+  lead:'休符は長さが合っていればいい、というものではありません。拍の切れ目が見えるように書き分けます。',
+  goal:'休符をどう分けて書くかが分かる。全休符の特別な使い方も知っておける。',
+  blocks:[
+    {t:'p', h:'音符に連桁のルールがあるように、休符にも書き方の決まりがあります。原則は同じです。休符は長さだけでなく、<b>拍のまとまりが読みやすくなるように書き分けます</b>。'},
+    {t:'p', h:'4/4 の小節は、前半2拍と後半2拍の2つのかたまりとして見ます。<b>拍の構造が読みやすくなるように、必要に応じて休符を分ける</b> —— これが原則です。真ん中（3拍めの頭）をまたぐ休符を分けるのは、その代表例になります。'},
+    {t:'box', h:'2拍めから3拍めにまたがる2拍の休みは、二分休符1つではなく <span class="eq">四分休符2つ</span> に分けて書く'},
+    {t:'staff', cap:'2拍めと3拍めが休み。真ん中をまたぐので四分休符2つに分ける',
+      seq:['quarter',{key:'quarter',rest:true},{key:'quarter',rest:true},'quarter'],
+      opt:{meterSig:[4,4]}, plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'一方、1拍めから2拍めまでの2拍の休みは前半のかたまりに収まっているので、二分休符1つで書けます。またぐかどうかが分かれ目です。'},
+    {t:'p', h:'もうひとつ、<span class="kw">全休符</span> には特別な使い方があります。「全音符と同じ長さの休み」という本来の意味に加えて、<b>1小節まるごと休む</b>というしるしとしても使われます。'},
+    {t:'staff', cap:'全休符ひとつで、この小節はまるごと休み',
+      seq:[{key:'whole',rest:true}], opt:{meterSig:[4,4], totalTick:192}},
+    {t:'p', h:'この使い方では、拍子が何であっても全休符1つです。3/4 の小節を休むときも、四分休符3つではなく全休符を1つ置きます。<b>つまり全休符は「常に4拍」ではありません</b>。長さの記号というより、「この小節は休み」という合図として働いています。'},
+    {t:'key', h:'休符も拍のまとまりが読みやすくなるように書き分ける。4/4では真ん中をまたぐ休符は分けるのが基本。全休符は「1小節休み」の合図としても使われ、その場合の長さは拍子によって変わります。'},
+    {t:'note', h:'◦ 休符をつなぐことはできません。音符にはタイがありますが、休符は並べて書くだけです。<br>◦ 複数の小節を続けて休むときは、小節数を数字で書いた専用の記号を使います。バンドスコアでよく見かける形です。'}
+  ],
+  quiz:[
+    {q:'4/4 で2拍めから3拍めにまたがる2拍の休みは、どう書くのがふつうですか。', opts:[
+      '二分休符1つ','四分休符2つ','全休符1つ','八分休符4つ'],
+      a:1, exp:'小節の真ん中をまたぐので、拍の切れ目が見えるように分けて書きます。'},
+    {q:'3/4 の小節をまるごと休むとき、ふつう何を書きますか。', opts:[
+      '四分休符3つ','付点二分休符1つ','全休符1つ','二分休符1つと四分休符1つ'],
+      a:2, exp:'全休符は「1小節休み」の合図としても使われ、拍子を問いません。'},
+    {q:'休符の書き方の原則はどれですか。', opts:[
+      'できるだけ少ない数で書く','拍のまとまりが読みやすくなるように書き分ける','必ず音符と同じ数にする','小節の後ろにまとめる'],
+      a:1, exp:'合計が合っていればよいのではなく、読み手に拍の切れ目が見えることが大事です。'}
+  ]
+},
+{
+  no:7, title:'リズムの読み下し',
+  lead:'複雑に見えるリズムも、拍ごとに縦に切れば読めます。手順を決めておくことが近道です。',
+  goal:'初めて見るリズムでも、拍ごとに分けて読む手順が使える。',
+  blocks:[
+    {t:'p', h:'リズムが読めないとき、多くの場合は <b>小節をひとかたまりで見ようとしている</b>のが原因です。1小節をまるごと理解しようとせず、拍ごとに切ってしまえば、中身はどれも見慣れた形になります。'},
+    {t:'p', h:'手順はこうです。'},
+    {t:'box', h:'① 拍子を見て1小節の拍数を確認　→　② 頭の中で拍の切れ目に縦線を引く　→　③ 拍ひとつぶんだけを見る　→　④ またいでいる音は「伸ばし」として扱う　→　⑤ 声に出して数える'},
+    {t:'p', h:'例を見てみましょう。下は4/4の1小節です。ぱっと見では読みにくいかもしれません。'},
+    {t:'staff', cap:'読んでみたい1小節',
+      seq:['dotEighth','sixteenth','eighth','eighth','quarter','quarter'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:72, label:'聴く'}]},
+    {t:'p', h:'拍ごとに切ると、1拍めは「付点八分＋十六分」、2拍めは「八分2つ」、3拍めと4拍めは四分音符1つずつ。<b>どれも前の節までに出てきた形</b>です。'},
+    {t:'p', h:'やっかいなのは、音が拍をまたぐ場合です。またいだ先は新しく弾く音ではなく、前の音の続き。ここを「伸ばし」と読み替えると、拍ごとの区切りが崩れません。'},
+    {t:'staff', cap:'2拍めの途中から3拍めにまたぐ音。タイで切って考えます',
+      seq:['quarter','eighth',{key:'quarter',tick:48},'eighth','quarter'],
+      opt:{meterSig:[4,4], tie:true}, plays:[{bpm:72, label:'聴く'}]},
+    {t:'p', h:'最後に声です。「いちとお、2と、3、4」のように、拍の頭を必ず口に出しながらたどってください。頭の中だけで読むと、またいだ音のところで拍を見失います。'},
+    {t:'key', h:'小節をまるごと読まず、拍ごとに切る。またいだ音は「伸ばし」として扱い、拍の頭は声に出す。'},
+    {t:'note', h:'◦ 手が動くかどうかは、そのあとの問題です。まず読めるようにしてから弾く。この順番を逆にすると、耳で覚えた雰囲気で弾くことになり、譜面が読めるようになりません。'}
+  ],
+  quiz:[
+    {q:'リズムを読むとき、最初にすることはどれですか。', opts:[
+      '音符の数を数える','拍子を確認して拍の切れ目を決める','テンポを決める','いちばん短い音符を探す'],
+      a:1, exp:'拍の切れ目が決まってはじめて、拍ごとに切って読むことができます。'},
+    {q:'拍をまたいで伸びている音は、どう読むとよいですか。', opts:[
+      'またいだ先で弾き直す','またいだ先は前の音の伸ばしとして扱う','無視して次の拍から読む','1つの拍として数えなおす'],
+      a:1, exp:'またいだ先は新しい音ではありません。伸ばしと考えると拍の区切りが崩れません。'},
+    {q:'読み下しの手順として、この節がすすめているのはどれですか。', opts:[
+      '1小節をひとかたまりで覚える','拍ごとに切って、それぞれの中身を見る','いちばん難しい場所から読む','弾きながら覚える'],
+      a:1, exp:'拍ごとに切れば、中身はすでに知っている形の組み合わせになります。'}
+  ]
+},
+{
+  no:8, title:'リズム譜とスラッシュ譜',
+  lead:'音の高さを書かず、リズムだけを示す譜面。ギターの現場でいちばんよく見る形です。',
+  goal:'リズム譜とスラッシュ譜の違いが分かる。コード譜のリズム表記も読める。',
+  blocks:[
+    {t:'p', h:'バンドで渡される譜面は、音符が五線に並んでいるとはかぎりません。コードネームが書いてあって、その下にリズムだけが記されている —— こちらのほうがずっと多いはずです。'},
+    {t:'p', h:'いちばんシンプルなのが <span class="kw">スラッシュ</span>。1小節に斜線が4本引いてあれば、「この小節はこのコードを4拍ぶん弾く」という意味です。リズムの指定はなく、弾き方は演奏者にまかされます。'},
+    {t:'fig', kind:'slash', cap:'スラッシュだけの小節。このコードを4拍ぶん弾く'},
+    {t:'p', h:'リズムまで指定したいときは、斜線に符幹や連桁を付けます。符頭が斜線になっているだけで、読み方はふつうの音符とまったく同じです。'},
+    {t:'fig', kind:'rhythmslash', cap:'符幹と連桁が付いた形。四分・八分2つ・四分・四分'},
+    {t:'p', h:'符頭が <b>×</b> になっているものもあります。これは音程を鳴らさない打楽器的な音で、ギターでは <span class="kw">ブラッシング</span>（左手の力を抜いて弦に触れたまま弾く）を表します。カッティングの譜面では、斜線と×が交互に並ぶ形をよく見ます。'},
+    {t:'fig', kind:'mute', cap:'×の符頭はブラッシング（音程が出ない音）。斜線と交互に並ぶ形'},
+    {t:'p', h:'五線ではなく <b>1本線</b> の上に音符が並んでいる譜面もあります。こちらは純粋にリズムだけを示すもので、ドラムの譜面やリズム練習の教材で使われます。この教材の演習も、考え方は同じです。'},
+    {t:'p', h:'もうひとつ覚えておきたいのが、<b>前の小節と同じ</b>ことを示す反復記号です。斜線に点を2つ添えた形で、「シミレ」とも呼ばれます。同じリズムが続く場所では、書き手も読み手もこれで楽になります。'},
+    {t:'key', h:'斜線はコードを弾く合図。符幹が付けばリズム指定、符頭が×ならブラッシング。1本線譜はリズムだけを示す譜面です。'},
+    {t:'note', h:'◦ スラッシュだけの譜面は「自由に弾いていい」という意味ではなく、「その場にふさわしいパターンで弾く」という意味です。曲のジャンルとドラムの動きを聴いて決めることになります。<br>◦ TAB譜の上にリズムだけが書かれている譜面も同じ考え方です。どこを押さえるかがTAB、いつ弾くかがリズム譜、と役割が分かれています。'}
+  ],
+  quiz:[
+    {q:'1小節に斜線が4本だけ書かれているとき、何を意味しますか。', opts:[
+      '4小節休む','そのコードを4拍ぶん弾く','4つの音を順に弾く','テンポを4倍にする'],
+      a:1, exp:'リズムの指定はなく、そのコードをその小節ぶん弾くという合図です。'},
+    {q:'符頭が × になっている音符は、ギターでは何を表しますか。', opts:[
+      'ハーモニクス','ブラッシング','チョーキング','一番高い弦を弾く'],
+      a:1, exp:'音程を鳴らさない打楽器的な音を表します。カッティングでよく使われます。'},
+    {q:'斜線に符幹や連桁が付いている譜面は、何を指定していますか。', opts:[
+      '音の高さ','弾く弦','リズム','音量'],
+      a:2, exp:'符頭が斜線になっているだけで、リズムの読み方はふつうの音符と同じです。'}
+  ]
+}
+];
+/* ============================================================
+   第3部の内容
+============================================================ */
+const P3 = [
+{
+  no:1, title:'8ビート',
+  lead:'1拍を八分音符2つで刻む。ポップスとロックのいちばん基本の土台です。',
+  goal:'8ビートの仕組みが分かる。八分で右手を振り続けながら弾ける。',
+  blocks:[
+    {t:'p', h:'1小節に八分音符が8つ入る刻み方を <span class="kw">8ビート</span> と呼びます。4/4の1拍を2つに割った、いちばん素直な形です。'},
+    {t:'staff', cap:'八分音符8つ。これが8ビートの土台',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{meterSig:[4,4], beam:true}, strokes:'DUDUDUDU',
+      plays:[{bpm:96, label:'聴く'}]},
+    {t:'p', h:'バンドの中では、ドラムのハイハットがこの8つを刻みます。バスドラムが1拍めと3拍め、スネアが2拍めと4拍め。これが典型です。第1部で見たバックビートは、このスネアの位置です。'},
+    {t:'p', h:'ギター側でまず押さえたいのが、<b>右手を八分で振り続ける</b>ことです。譜面に八分音符が8つ並んでいなくても、腕は8つぶん動かします。鳴らさない場所では弦に当てずに空振りする —— これが空ピックで、あとの節でくわしく扱います。'},
+    {t:'p', h:'実際のカッティングは、8つのうちいくつかを抜いた形になります。下は定番のひとつ。抜けた場所でも腕は動いている、と考えて聴いてみてください。'},
+    {t:'staff', cap:'8つのうち4拍めの裏を残し、途中を抜いた形',
+      seq:['eighth','eighth','eighth',{key:'eighth',rest:true},'eighth','eighth','quarter'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:96, label:'聴く'}]},
+    {t:'key', h:'8ビートは1拍を八分2つで刻む形。譜面に音がなくても、右手は八分で振り続けます。'},
+    {t:'note', h:'◦ 「8ビート」は日本で広く使われる言い方で、英語では eighth-note feel などと言います。呼び方の違いであって、中身は同じものです。'}
+  ],
+  quiz:[
+    {q:'4/4 の8ビートでは、1小節に八分音符がいくつ入りますか。', opts:['4つ','6つ','8つ','16こ'],
+      a:2, exp:'1拍に2つ、それが4拍ぶんで8つです。'},
+    {q:'8ビートのバンドで、スネアがふつう入る位置はどこですか。', opts:[
+      '1拍めと3拍め','2拍めと4拍め','すべての裏拍','1拍めだけ'],
+      a:1, exp:'2拍めと4拍め、いわゆるバックビートに入ります。'},
+    {q:'譜面上で音が抜けている場所でも、右手をどうするのがよいですか。', opts:[
+      '止める','八分で振り続ける','四分に切り替える','次の音まで待つ'],
+      a:1, exp:'腕の周期を保つことで、表拍と裏拍の対応が崩れません。'}
+  ]
+},
+{
+  no:2, title:'16ビート',
+  lead:'1拍を4つに割って刻む。細かくなるぶん、鳴らさない場所の扱いが決め手になります。',
+  goal:'16ビートの仕組みが分かる。鳴らすところと空振りするところを区別できる。',
+  blocks:[
+    {t:'p', h:'1拍を十六分音符4つで刻むのが <span class="kw">16ビート</span> です。1小節では16個。ファンクやR&B、バラードのアルペジオなど、幅広く使われます。'},
+    {t:'staff', cap:'十六分音符16個。手はこの細かさで振り続けます',
+      seq:Array(16).fill('sixteenth'),
+      opt:{meterSig:[4,4], beam:true}, strokes:'DUDUDUDUDUDUDUDU',
+      plays:[{bpm:76, label:'聴く'}]},
+    {t:'p', h:'ただ、<b>16個ぜんぶを鳴らすことはまずありません</b>。実際に音になるのは数個で、残りは空振りです。つまり16ビートらしさは、鳴らした音ではなく <b>鳴らさない場所の均一さ</b> から生まれます。'},
+    {t:'staff', cap:'16分のうち数か所だけを鳴らした形',
+      seq:['sixteenth','sixteenth',{key:'eighth',tick:24},'eighth',{key:'sixteenth',rest:true},'sixteenth',
+           'eighth','eighth','quarter'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:76, label:'聴く'}]},
+    {t:'p', h:'テンポが速い曲では、十六分で振り続けると腕が追いつきません。その場合は八分振りに切り替え、必要な十六分だけを差し込みます。<b>どちらの振り方をしているか自分で分かっている</b>ことが大事で、無自覚に混ざるとリズムが崩れます。'},
+    {t:'key', h:'16ビートは1拍を4つに割る刻み。鳴らさない場所を均一に保てるかどうかで質が決まります。'},
+    {t:'note', h:'◦ 16分の「え」と「あ」の位置は、八分では出てこない場所です。ここを正確に置けるかどうかが、8ビートとの実力差になります。カウントは第1部6節を見返してください。'}
+  ],
+  quiz:[
+    {q:'4/4 の16ビートでは、1小節に十六分音符がいくつ入りますか。', opts:['8つ','12こ','16こ','32こ'],
+      a:2, exp:'1拍に4つ、4拍ぶんで16個です。'},
+    {q:'16ビートらしさは、主にどこから生まれますか。', opts:[
+      '鳴らす音の数の多さ','鳴らさない場所を均一に保つこと','テンポの速さ','音量の大きさ'],
+      a:1, exp:'実際に鳴らすのは数個です。空振りしている場所の均一さが質を決めます。'},
+    {q:'テンポが速くて十六分で振り続けられないとき、どうするのがよいですか。', opts:[
+      '振りを止めて必要な音だけ弾く','八分振りに切り替え、必要な十六分を差し込む','テンポを下げて演奏する','すべてダウンで弾く'],
+      a:1, exp:'振り方を自覚的に切り替えます。無自覚に混ざるとリズムが崩れます。'}
+  ]
+},
+{
+  no:3, title:'ストロークの向きと空ピック',
+  lead:'表はダウン、裏はアップ。この対応を崩さないための道具が空ピックです。',
+  goal:'拍の位置からストロークの向きを決められる。空ピックが何のためにあるかも分かる。',
+  blocks:[
+    {t:'p', h:'第1部で見たとおり、<b>オルタネイト・ストロークで八分を振り続ければ、ダウンが表拍、アップが裏拍</b> になります。16分で振れば、ダウンが「1」と「と」、アップが「え」と「あ」。振りの周期と拍の位置が、一対一で対応します。これはあくまで基本形で、あとで見るように意図して崩す場面もあります。'},
+    {t:'p', h:'この対応が守られているかぎり、<b>いま腕がどこにあるかを見れば、いま何拍めの何かが分かる</b>。逆に言えば、対応が崩れた瞬間にリズムの現在地を見失います。'},
+    {t:'p', h:'そこで <span class="kw">空ピック</span> です。音を出さない場所でも、弦に当てずに腕だけ振る。音は鳴らないのに周期は保たれる、という状態を作ります。'},
+    {t:'staff', cap:'薄い記号が空ピック。音は出さず、腕だけ振ります',
+      seq:['eighth','eighth',{key:'eighth',rest:true},'eighth','eighth',{key:'eighth',rest:true},'eighth','eighth'],
+      opt:{meterSig:[4,4], beam:true}, strokes:'DUxUDxDU',
+      plays:[{bpm:96, label:'聴く'}]},
+    {t:'p', h:'よくある失敗は、休符のところで腕を止めてしまうことです。止めると次にどちらの向きから入るか分からなくなり、本来アップで入るはずの音をダウンで弾いてしまう。音は合っていても、ノリが変わります。'},
+    {t:'p', h:'ダウンとアップでは音色も違います。ダウンは低音弦から当たるので太く、アップは高音弦からなので軽い。この差があるからこそ、向きをそろえる意味があります。'},
+    {t:'key', h:'オルタネイト・ストロークの基本形では、ダウン＝表、アップ＝裏。音を出さない場所も腕を振り続けて、この対応を守ります。'},
+    {t:'note', h:'◦ あえて向きを崩す場面もあります。強調したい裏拍をダウンで弾く、連続ダウンで攻撃的にする、など。ただしこれは <b>原則を守れる人が意図してやること</b> で、崩れているのとは別ものです。'}
+  ],
+  quiz:[
+    {q:'八分でオルタネイト・ストロークを振り続けるとき、裏拍に当たるのはどちらですか。', opts:['ダウン','アップ','どちらでもよい','拍子による'],
+      a:1, exp:'基本形では、ダウンが表拍、アップが裏拍になります。'},
+    {q:'空ピックの目的はどれですか。', opts:[
+      '音量を下げる','腕の振りの周期を保つ','弦を休ませる','テンポを速くする'],
+      a:1, exp:'音を出さない場所でも振ることで、表裏とダウンアップの対応が崩れません。'},
+    {q:'休符のところで腕を止めてしまうと、何が起きやすいですか。', opts:[
+      '音量が下がる','次の音のストロークの向きが逆になる','テンポが速くなる','弦が切れる'],
+      a:1, exp:'周期が途切れるため、本来アップで入る音をダウンで弾いてしまいます。'}
+  ]
+},
+{
+  no:4, title:'シャッフルとハネ',
+  lead:'三連符の真ん中を抜いた形。等分に刻む8ビートとは、まったく別の乗り方になります。',
+  goal:'シャッフルの成り立ちが分かる。3つの書き方を見分けられる。',
+  blocks:[
+    {t:'p', h:'第2部の三連符を思い出してください。1拍を3つに割り、<b>1つめと3つめだけを鳴らして真ん中を抜く</b>。これが <span class="kw">シャッフル</span> の基本の形です。「タッ・タ、タッ・タ」と、長い音と短い音が交互に来ます。'},
+    {t:'staff', cap:'三連符の1つめと3つめ。これがシャッフルの刻み',
+      seq:[{key:'quarter',tick:32},{key:'eighth',tick:16},{key:'quarter',tick:32},{key:'eighth',tick:16},
+           {key:'quarter',tick:32},{key:'eighth',tick:16},{key:'quarter',tick:32},{key:'eighth',tick:16}],
+      opt:{meterSig:[4,4]},
+      tuplets:[{from:0,to:1},{from:2,to:3},{from:4,to:5},{from:6,to:7}],
+      plays:[{bpm:88, label:'聴く'}]},
+    {t:'p', h:'比べてみましょう。下はふつうの八分音符、つまり等分の8ビートです。同じ8つの音でも、裏の位置がまったく違います。'},
+    {t:'staff', cap:'等分の八分音符。裏がちょうど真ん中に来る',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:88, label:'聴く'}]},
+    {t:'p', h:'ここでちょっとややこしいのが <b>書き方が3通りある</b>ことです。'},
+    {t:'box', h:'① 三連符で書く　／　② <span class="eq">付点八分＋十六分</span>（3対1の長短）で書く　／　③ 曲の頭に「Shuffle」と指示し、あとは <span class="eq">ふつうの八分音符</span> で書く'},
+    {t:'p', h:'③がいちばんよく見る形です。譜面には八分音符が並んでいるのに、はねて演奏する。譜面の見た目と実際の音が違うので、指示を見落とすと別の曲になってしまいます。'},
+    {t:'p', h:'覚えておきたいのは、<b>どの書き方も実際のハネ具合をそのまま表してはいない</b>ということ。②の付点八分＋十六分は3対1、三連符は2対1です。数字の上ではこれだけ違いますが、実際の演奏はその中間あたりを行き来しています。<b>ハネ具合は曲や演奏者によって連続的に変わります</b>。記譜はその近似だと考えてください。'},
+    {t:'staff', cap:'付点八分＋十六分（3対1）。三連符よりも長短の差が大きい書き方',
+      seq:['dotEighth','sixteenth','dotEighth','sixteenth','dotEighth','sixteenth','dotEighth','sixteenth'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:88, label:'聴く'}]},
+    {t:'key', h:'シャッフルは三連符ベースの長短で捉えるのが基本。書き方は3通りあり、どれも近似です。実際のハネ具合は曲や演奏によって変わります。'},
+    {t:'note', h:'◦ ブルース、ジャズのスウィング、ロカビリーなど、はねる音楽の土台はほぼこの形です。<br>◦ ハネ具合は曲やジャンルの空気で決まります。数値で正解が決まっているものではありません。'}
+  ],
+  quiz:[
+    {q:'シャッフルは、どの音符を抜いた形ですか。', opts:[
+      '三連符の1つめ','三連符の真ん中','八分音符の裏','十六分音符の2つめ'],
+      a:1, exp:'1拍を3等分し、1つめと3つめだけを鳴らします。'},
+    {q:'譜面に八分音符が並んでいても、はねて演奏するのはどんなときですか。', opts:[
+      'テンポが速いとき','曲の頭に「Shuffle」の指示があるとき','拍子が6/8のとき','コードがセブンスのとき'],
+      a:1, exp:'指示があれば、見た目は等分でもはねて弾きます。見落とすと別の曲になります。'},
+    {q:'シャッフルの記譜について、正しい説明はどれですか。', opts:[
+      '三連符で書いた形だけが正しい','どの書き方も近似で、実際のハネ具合は曲や演奏で変わる','付点八分＋十六分が唯一の正解','八分音符で書いたらはねない'],
+      a:1, exp:'三連符は2対1、付点八分＋十六分は3対1。実際の演奏はその中間を行き来します。'},
+    {q:'いま鳴ったのは、はねていますか、等分ですか。', opts:['A','B','C','D'], a:2,
+      exp:'三連符ベースのはねた刻み。長い音と短い音が交互に来ています。',
+      ear:{bpm:88, opt:{meterSig:[4,4], beam:true}, choices:[
+        ['eighth','eighth','eighth','eighth','eighth','eighth','eighth','eighth'],
+        ['quarter','quarter','quarter','quarter'],
+        [{key:'quarter',tick:32},{key:'eighth',tick:16},{key:'quarter',tick:32},{key:'eighth',tick:16},
+         {key:'quarter',tick:32},{key:'eighth',tick:16},{key:'quarter',tick:32},{key:'eighth',tick:16}],
+        ['sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','half']
+      ]}}
+  ]
+},
+{
+  no:5, title:'シンコペーション',
+  lead:'弱い位置の音が主役になって、拍の重心がずれる。ポップスが前へ進む感じは、ここから生まれます。',
+  goal:'シンコペーションの作り方が分かる。譜面の中から見つけられる。',
+  blocks:[
+    {t:'p', h:'第1部で、拍には強弱の並びがあると見ました。<span class="kw">シンコペーション</span> は、その並びをわざと裏切る書き方です。<b>本来弱い位置の音を目立たせ、強い位置を鳴らさない</b>。すると重心がずれ、前へ引っぱられるような推進力が生まれます。'},
+    {t:'p', h:'作り方はおおまかに2つあります。'},
+    {t:'box', h:'① 強い拍を<b>鳴らさず</b>、その手前の裏から音を伸ばす　／　② 弱い位置の音に<b>アクセント</b>を置く'},
+    {t:'p', h:'①が代表的です。下は3拍めを弾かず、2拍めの裏から伸ばした形。3拍めは中くらいに強い拍なのに、そこで新しい音が鳴りません。'},
+    {t:'staff', cap:'2拍めの裏から3拍めへ伸ばす。3拍めの頭を弾かない',
+      seq:['quarter','eighth',{key:'quarter',tick:72},'quarter'],
+      opt:{meterSig:[4,4], tie:true}, plays:[{bpm:88, label:'聴く'}]},
+    {t:'p', h:'聴いてみると、拍の位置は変わっていないのに、リズムが前のめりに聞こえるはずです。強い場所に音がないぶん、直前の裏拍が強く感じられる —— これがシンコペーションの効果です。'},
+    {t:'p', h:'譜面で見つけるとき、とくに分かりやすいのが <b>タイで音が強い拍をまたいでいる形</b> です。4/4なら1拍めや3拍めの頭にタイの後ろ側が来ていたら、まずそこを疑ってください。'},
+    {t:'p', h:'ただし、シンコペーションはタイだけで作られるものではありません。弱い位置にアクセントを置く、強い拍を休符にする、弱い位置から音を始める —— どれも重心をずらす方法です。<b>タイを探すのは、いちばん見つけやすい入口</b>だと考えてください。'},
+    {t:'key', h:'重心を本来と違う位置にずらす書き方の総称がシンコペーション。タイで強い拍をまたぐ形がいちばん見つけやすい入口です。'},
+    {t:'note', h:'◦ 弾くときは、鳴らさない拍こそ体で数えてください。3拍めを弾かないからといって3拍めを数えなくなると、次の小節で位置を見失います。'}
+  ],
+  quiz:[
+    {q:'シンコペーションでは、何が起きていますか。', opts:[
+      'テンポが速くなる','拍の重心が本来と違う位置にずれる','拍子が変わる','音量が大きくなる'],
+      a:1, exp:'弱い位置が目立ち、強い位置に音がないため、重心がずれます。'},
+    {q:'シンコペーションを譜面で見つけるとき、いちばん分かりやすい手がかりはどれですか。', opts:[
+      '休符が多いこと','強い拍の頭にタイの後ろ側が来ていること','連桁が長いこと','付点が多いこと'],
+      a:1, exp:'強い拍で新しい音が鳴らず、手前から伸びている形です。ただしシンコペーションはタイだけで作られるわけではありません。'},
+    {q:'鳴らさない拍について、演奏時に気をつけることはどれですか。', opts:[
+      '数えなくてよい','体では数え続ける','その拍だけテンポを落とす','次の音まで目を閉じる'],
+      a:1, exp:'鳴らさない拍を数えなくなると、リズムの現在地を見失います。'},
+    {q:'いま鳴ったのは、どのリズムですか。', opts:['A','B','C','D'], a:3,
+      exp:'2拍めの裏から3拍めへまたいでいます。3拍めの頭で新しい音が鳴りません。',
+      ear:{bpm:84, opt:{meterSig:[4,4], tie:true}, choices:[
+        ['quarter','quarter','quarter','quarter'],
+        ['half','quarter','quarter'],
+        ['quarter','eighth','eighth','quarter','quarter'],
+        ['quarter','eighth',{key:'quarter',tick:72},'quarter']
+      ]}}
+  ]
+},
+{
+  no:6, title:'食い（アンティシペーション）',
+  lead:'次に来るはずの音を、本来の位置より前で出す。現場でいちばんよく使う言葉のひとつです。',
+  goal:'「食い」がどういうものか分かる。コードチェンジの位置としても読める。',
+  blocks:[
+    {t:'p', h:'本来なら次の拍、あるいは次の小節の頭で鳴るはずの音を、<b>その位置より前に出してしまう</b>。これを日本のバンド現場では <span class="kw">食う</span> と言います。理論の言葉でいえば <span class="kw">アンティシペーション</span>（先取り）が近い考え方です。'},
+    {t:'p', h:'いちばん多いのが、小節の頭のコードを4拍めの裏、つまり半拍前で鳴らす形。「頭を食う」と言われるパターンです。ただし <b>半拍と決まっているわけではありません</b>。16分ぶん（4分の1拍）だけ早く入ることもあり、どれだけ早めるかは曲によって変わります。'},
+    {t:'staff', cap:'4拍めの裏でコードチェンジ。次の小節の頭を先取りする',
+      seq:['quarter','quarter','quarter','eighth',{key:'eighth',tick:24}],
+      opt:{meterSig:[4,4]}, plays:[{bpm:88, label:'聴く'}]},
+    {t:'p', h:'コード譜では、コードネームが小節の頭ではなく <b>少し左にずれて</b> 書かれていたり、矢印や斜線で位置が示されていたりします。これを見落とすと、バンドの中で自分だけコードチェンジが遅れます。'},
+    {t:'p', h:'シンコペーションとの関係も整理しておきます。「食い」は現場で使われる言い方で、理論上のアンティシペーション（先取り）とほぼ重なります。アンティシペーションは <b>シンコペーションの一形態</b> で、そのなかでも「次に来る音を先取りする」形です。前の節の例も、広い意味ではここに含まれます。'},
+    {t:'box', h:'<span class="eq">シンコペーション</span>＝重心をずらす書き方の総称　／　<span class="eq">先取り（現場では「食い」）</span>＝そのうち、次の拍や小節の頭を早めに出す形'},
+    {t:'p', h:'演奏で気をつけたいのは、<b>先取りした音を、本来の位置でもう一度弾くとはかぎらない</b>という点です。先に出したぶん、その場所では鳴らさないことが多い。ここで律儀に弾き直すと、ただの早すぎたコードチェンジに聴こえてしまいます。'},
+    {t:'key', h:'食いは、次の拍や小節の頭を本来の位置より前で鳴らすこと。半拍が多いものの、それだけとはかぎりません。本来の位置で弾き直すかどうかは譜面しだいです。'},
+    {t:'note', h:'◦ 「食う」は日本のバンド現場の言い方で、譜面用語ではありません。リハーサルで「そこ食って」と言われたら、その音を本来の位置より前で出す、という意味になります。どれだけ早めるかは、そのときの譜面と曲によります。'}
+  ],
+  quiz:[
+    {q:'「頭を食う」とは、どういう演奏ですか。', opts:[
+      '小節の頭を強く弾く','小節の頭の音を本来の位置より前で鳴らす','小節の頭を弾かない','小節の頭でテンポを上げる'],
+      a:1, exp:'次の小節の頭に来るはずの音を先取りします。半拍前が多いものの、それだけとはかぎりません。'},
+    {q:'食いとシンコペーションの関係として正しいものはどれですか。', opts:[
+      'まったく別のもの','食い（アンティシペーション）はシンコペーションの一形態','シンコペーションは食いの一種','どちらも同じ意味'],
+      a:1, exp:'重心をずらす書き方の総称がシンコペーション。そのうち先取りの形がアンティシペーションで、現場では「食い」と呼ばれます。'},
+    {q:'先取りした音は、本来の位置でどう扱うことが多いですか。', opts:[
+      '必ずもう一度弾く','鳴らさないことが多い','音量を上げて弾く','拍子を変える'],
+      a:1, exp:'先に出しているので、その位置では鳴らさないのがふつうです。ただし譜面によって変わります。'}
+  ]
+},
+{
+  no:7, title:'ゴーストノートとブラッシング',
+  lead:'音程を出さない、小さな音。譜面に書かれないことも多いのですが、ノリを支える大事な要素です。',
+  goal:'ゴーストノートが何をしているか分かる。×の符頭も読める。',
+  blocks:[
+    {t:'p', h:'はっきり鳴らす音のあいだに、ごく小さな音をはさむ —— これを <span class="kw">ゴーストノート</span> と呼びます。ドラムならスネアの弱打、ベースなら軽く触れる音。ギターなら、左手の力を抜いて弦に触れたまま弾く <span class="kw">ブラッシング</span> がこれです。'},
+    {t:'p', h:'第2部で見たとおり、譜面では <b>×の符頭</b> で書かれます。音の高さを指定しない、打楽器的な音という意味です。'},
+    {t:'p', h:'ここで用語をひとつ整理しておきます。この音を <span class="kw">ミュート</span> と呼ぶ人もいますが、少しずれた言い方です。ミュートは「音を止める・抑える」という広い意味の言葉で、右手を弦に置く <b>ブリッジミュート（パームミュート）</b> のように <b>音程が出たまま抑える</b> ものも含みます。'},
+    {t:'box', h:'<span class="eq">ブラッシング</span>　→　音程が出ない。×の符頭で書く　／　<span class="eq">ブリッジミュート</span>　→　音程は出る。ふつうの符頭で書き、<b>P.M.</b> などと指示する'},
+    {t:'p', h:'現場では「そこミュートで」と言われることもあり、そのときはどちらの意味かを前後の話から読み取ることになります。<b>譜面の上では区別されている</b>ことだけ、押さえておいてください。'},
+    {t:'fig', kind:'mute', cap:'斜線と×が交互に並ぶ形。×がブラッシング'},
+    {t:'p', h:'これが効くのは、<b>刻みの隙間が埋まる</b>からです。16ビートで数個しか鳴らさないと、あいだが空いて手の動きも止まりがちになります。そこに小さな音を入れると、腕の周期が音として聞こえてきて、グルーヴがつながります。'},
+    {t:'p', h:'ゴーストノートは、<b>空ピックの一部を実際に鳴らしたもの</b>です。振りは同じで、弦に当てるか当てないかだけの違いになります。'},
+    {t:'p', h:'注意すべきは音量です。はっきり鳴らす音と同じ強さで弾くと、ただ音数が多いだけになります。<b>聴こえるか聴こえないかの境目</b>を狙ってください。'},
+    {t:'key', h:'ゴーストノートは音程を出さない小さな音。ギターではブラッシングがこれで、×の符頭で書きます。音程が出たまま抑えるブリッジミュートとは別ものです。'},
+    {t:'note', h:'◦ 譜面に書かれていないことも多い要素です。原曲を聴いて、はっきりした音のあいだに何が入っているかを探すのが、耳コピでいちばん差が出るところでもあります。'}
+  ],
+  quiz:[
+    {q:'ギターのブラッシングは、譜面ではどう書かれますか。', opts:[
+      '符頭が×','符頭が白い丸','符頭が斜線','符頭に点が付く'],
+      a:0, exp:'音の高さを指定しない打楽器的な音を、×の符頭で表します。'},
+    {q:'ブラッシングとブリッジミュートの違いはどれですか。', opts:[
+      'どちらも音程が出ない','ブラッシングは音程が出ず、ブリッジミュートは音程が出る','ブラッシングだけ右手を使う','譜面での書き方は同じ'],
+      a:1, exp:'ブラッシングは×の符頭、ブリッジミュートはふつうの符頭に P.M. の指示で書き分けます。'},
+    {q:'ゴーストノートの音量はどのくらいがよいですか。', opts:[
+      'ほかの音と同じ','聴こえるか聴こえないかの境目','ほかの音より大きく','まったく聴こえないほど'],
+      a:1, exp:'同じ強さで弾くと、ただ音数が多いだけになってしまいます。'}
+  ]
+},
+{
+  no:8, title:'アクセント',
+  lead:'同じ長さの音符が並んでいても、どこを強く弾くかで表情はまったく変わります。',
+  goal:'アクセント記号が読める。置く位置でノリがどう変わるかを聴き分けられる。',
+  blocks:[
+    {t:'p', h:'音符の上か下に付く「>」の記号が <span class="kw">アクセント</span>。その音を強く弾く、という指示です。長さは変わりません。'},
+    {t:'p', h:'第1部で、拍にはもともと強弱の並びがあると見ました。アクセントは、その自然な並びの上に <b>もうひとつ別の強弱を重ねる</b> ものです。並びに沿って置けば安定し、逆らって置けば緊張が生まれます。'},
+    {t:'staff', cap:'2拍めと4拍めにアクセント。バックビートが立つ形',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{meterSig:[4,4], beam:true}, accents:[2,6],
+      plays:[{bpm:96, label:'聴く'}]},
+    {t:'p', h:'下は裏拍だけにアクセントを置いた形。同じ八分音符8つなのに、上とは別のリズムに聴こえます。音符は1つも変えていません。'},
+    {t:'staff', cap:'裏拍にアクセント。前に引っぱられる感じが出ます',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{meterSig:[4,4], beam:true}, accents:[1,3,5,7],
+      plays:[{bpm:96, label:'聴く'}]},
+    {t:'p', h:'ギターのストロークでは、アクセントは <b>当てる弦の本数</b> でも作れます。強い場所は6本まとめて、弱い場所は高音側の2〜3本だけ。ピッキングの強さだけで差をつけようとすると力みますが、当てる範囲を変えれば楽に差が出ます。'},
+    {t:'p', h:'ここまでは譜面に書かれた記号の話です。ただ、記号がない譜面でも、演奏には強弱があります。むしろ書かれていないことのほうが多い。<b>全部同じ強さで弾く</b>のは、それはそれでひとつの選択になってしまいます。'},
+    {t:'key', h:'アクセント記号は、長さを変えずに強さだけを変える指示。置く位置しだいで、同じ音符列が別のリズムに聴こえます。記号がなくても、演奏には強弱があります。'},
+    {t:'note', h:'◦ 記号の形は似ていますが、短く切る指示（スタッカート）は点、強く長めに保つ指示（テヌート）は横線で、それぞれ別ものです。'}
+  ],
+  quiz:[
+    {q:'アクセント記号が付いた音は、どうなりますか。', opts:[
+      '長くなる','短くなる','強く弾く','高く弾く'],
+      a:2, exp:'長さは変わりません。その音を強く弾くという指示です。'},
+    {q:'同じ八分音符8つでも、アクセントの位置を変えると何が変わりますか。', opts:[
+      '拍子','テンポ','聴こえるリズムの表情','小節の長さ'],
+      a:2, exp:'音符は変えていなくても、強弱の置き場所でまったく別のリズムに聴こえます。'},
+    {q:'ギターのストロークで、力まずにアクセントを作る方法はどれですか。', opts:[
+      'ピックを持ち替える','当てる弦の本数を変える','テンポを変える','弦高を変える'],
+      a:1, exp:'強い場所は6本、弱い場所は高音側だけ。当てる範囲で差をつけられます。'}
+  ]
+},
+];
+/* ============================================================
+   第4部の内容
+============================================================ */
+const P4 = [
+{
+  no:1, title:'前ノリと後ノリ',
+  lead:'テンポは同じでも、音の出だしをわずかに前後へ寄せると印象が変わります。走る・もたるとは別の話です。',
+  goal:'前ノリ・後ノリと「走る・もたる」の違いが分かる。',
+  blocks:[
+    {t:'p', h:'テンポが決まれば、拍の位置は数字の上ではひとつに定まります。しかし実際の演奏では、その基準の位置に対して <b>音の出だし（アタック）をわずかに前後へ寄せる</b> ことができます。意図して前に寄せれば <span class="kw">前ノリ</span>、後ろに寄せれば <span class="kw">後ノリ</span>。基準どおりがジャストです。'},
+    {t:'html', h:`<div class="beatgrid">
+      <div class="bt strong"><div class="num">前</div><div class="lv">基準より前</div></div>
+      <div class="bt mid"><div class="num">ジャスト</div><div class="lv">基準どおり</div></div>
+      <div class="bt"><div class="num">後</div><div class="lv">基準より後ろ</div></div></div>`},
+    {t:'p', h:'ここでよく混同されるのが、<span class="kw">走る</span>・<span class="kw">もたる</span> との違いです。'},
+    {t:'box', h:'<span class="eq">前ノリ・後ノリ</span>＝テンポは保ったまま、アタックの位置を意図的に前後へ寄せている　／　<span class="eq">走る・もたる</span>＝テンポそのものが変わってしまっている'},
+    {t:'p', h:'前ノリは、少し早い位置に <b>毎回きっちり置き続ける</b> ことで成立します。だんだん早くなっていくのは、ただの走りです。つまり前ノリは、正確さを失うことではなく <b>別の位置で正確であること</b>。ここを取り違えると、練習の方向がまるごとずれます。'},
+    {t:'p', h:'バンドの中では、パートごとにこの位置が少しずつ違うことがあります。たとえばスネアを少し後ろ、ベースをジャスト、ギターのカッティングを少し前に置く —— これはあくまで一例で、こう決まっているわけではありません。組み合わせしだいで質感が変わる、ということです。'},
+    {t:'p', h:'全員がぴったり同じ位置に並ぶと、正確なのに平板に聴こえることもあります。どこを狙うかは曲とアレンジで決まるもので、<b>正解の配置があるわけではありません</b>。'},
+    {t:'key', h:'前ノリ・後ノリは、テンポを保ったまま基準の拍位置に対してアタックを意図的に前後へ寄せること。テンポ自体が変わってしまうのは走る・もたるで、別の問題です。'},
+    {t:'note', h:'◦ まずジャストで弾けることが先です。ジャストが定まっていないうちに「前ノリで」と言われても、走っているのか意図なのか自分で判断できません。'}
+  ],
+  quiz:[
+    {q:'前ノリと「走る」の違いはどこにありますか。', opts:[
+      '音量が違う','テンポが変わってしまうかどうか','拍子が違う','使う音符が違う'],
+      a:1, exp:'前ノリはテンポを保ったまま位置がずれた状態、走るはテンポ自体が変わっている状態です。'},
+    {q:'前ノリを成立させるために必要なことはどれですか。', opts:[
+      'だんだん速くしていく','少し早い位置に毎回きっちり置き続ける','音を強く弾く','テンポを上げる'],
+      a:1, exp:'別の位置で正確であることが前ノリです。'},
+    {q:'バンドで全パートがまったく同じ位置に音を置くと、どうなりやすいですか。', opts:[
+      '必ず良い演奏になる','正確でも平板になることがある','テンポが速くなる','音量が下がる'],
+      a:1, exp:'パートごとの微妙な位置の差が、アンサンブルの質感を作ります。'}
+  ]
+},
+{
+  no:2, title:'ヘミオラ',
+  lead:'拍子はそのままで、まとまりの数だけを変える。3拍ぶんを2つに割る、3対2の仕掛けです。',
+  goal:'ヘミオラの仕組みが分かる。よく似た3・3・2とも区別できる。',
+  blocks:[
+    {t:'p', h:'<span class="kw">ヘミオラ</span> は、拍子を変えずに <b>まとまりの数だけを一時的に変える</b> 書き方です。3拍子の中に2つのまとまりを作る、あるいはその逆をやります。'},
+    {t:'p', h:'いちばん分かりやすいのが 3/4 の例。1小節は四分音符3つですが、これを付点四分音符2つに置き換えると、同じ3拍のなかに <b>2つのまとまり</b> ができます。'},
+    {t:'staff', cap:'3/4 — 四分3つのはずが、付点四分2つで割られている',
+      seq:['dotQuarter','dotQuarter'], opt:{totalTick:144, meterSig:[3,4]},
+      plays:[{bpm:100, label:'聴く'}]},
+    {t:'staff', cap:'こちらは通常の3/4。3つのまとまり',
+      seq:['quarter','quarter','quarter'], opt:{totalTick:144, meterSig:[3,4]},
+      plays:[{bpm:100, label:'聴く'}]},
+    {t:'p', h:'小節の長さも拍子も変わっていません。変わったのは <b>どこを区切りと感じるか</b> だけ。それでも聴くと、拍子が変わったような感覚になります。'},
+    {t:'box', h:'ヘミオラの基本形　→　3拍ぶんの長さを <span class="eq">2つ</span> に割る（あるいはその逆）。<b>3対2の関係</b>がヘミオラです'},
+    {t:'p', h:'ここで、よく似ているけれど別のものを区別しておきます。4/4 の八分音符8つを「<b>3・3・2</b>」でまとめる形です。ポップスやロックのキメで頻繁に使われ、リズムが割り替わったように聴こえます。'},
+    {t:'p', h:'ただしこれは <b>3対2の関係ではありません</b>。8つを3・3・2という不均等なまとまりに区切っているだけで、伝統的な意味でのヘミオラとは別の仕掛けです。この教材では <span class="kw">3・3・2 のアクセントパターン</span> と呼んで、区別して扱います。'},
+    {t:'p', h:'注意したいのは、<b>拍子そのものは変わっていない</b>という点。数えるのは元の拍子のままです。まとまりに引きずられて拍を数え直してしまうと、ヘミオラが終わったときに戻れなくなります。'},
+    {t:'key', h:'ヘミオラは3対2の関係で、拍子を変えずにまとまりの数だけを変える仕掛け。4/4の3・3・2は不均等な区切りで、これとは別ものです。数える拍はどちらも元のままにしておきます。'},
+    {t:'note', h:'◦ ヘミオラはもともとルネサンスやバロックの音楽で使われてきた用語です。ポップスの現場ではあまり呼び名としては使われませんが、仕掛けそのものは今でもよく出てきます。'}
+  ],
+  quiz:[
+    {q:'ヘミオラでは、何が変わりますか。', opts:[
+      '拍子記号','テンポ','まとまりの数の感じ方','小節の長さ'],
+      a:2, exp:'拍子も小節の長さも変わりません。区切りの感じ方だけが変わります。'},
+    {q:'4/4 の八分音符8つを「3・3・2」でまとめる形について、正しい説明はどれですか。', opts:[
+      'ヘミオラとまったく同じもの','3対2の関係ではなく、不均等な区切りによる別の仕掛け','拍子が変わっている','三連符の一種'],
+      a:1, exp:'ヘミオラは3対2の関係。3・3・2は不均等なまとまりで、この教材では別のものとして扱います。'},
+    {q:'ヘミオラの最中、拍はどう数えますか。', opts:[
+      'まとまりに合わせて数え直す','元の拍子のまま数える','数えるのをやめる','半分の速さで数える'],
+      a:1, exp:'数え直すと、ヘミオラが終わったときに戻れなくなります。'}
+  ]
+},
+{
+  no:3, title:'変拍子',
+  lead:'5拍子や7拍子など、2・3・4拍子の枠に収まらない拍子。小さなまとまりに分けて数えます。',
+  goal:'変拍子の数え方が分かる。5拍子・7拍子を小さなまとまりで捉えられる。',
+  blocks:[
+    {t:'p', h:'2拍子・3拍子・4拍子といった、ふだん使い慣れた枠に収まらない拍子があります。5/4、7/8、7/4 など。この教材では、こうした拍子を <span class="kw">変拍子</span> と呼びます。'},
+    {t:'p', h:'ここで押さえておきたいのが、<b>6/8 や 9/8 は変拍子ではない</b>という点です。これらは第1部8節で見た複合拍子で、それぞれ2拍・3拍として素直に数えられます。拍子記号が見慣れないからといって、変拍子とはかぎりません。'},
+    {t:'p', h:'変拍子も特別に難しいものではなく、<b>まとまりに分けてしまえば</b> 既に知っている形の組み合わせになります。'},
+    {t:'p', h:'たとえば 5/4。四分音符が5つ入りますが、「1・2・3・4・5」と数えるより、<b>3＋2</b> か <b>2＋3</b> に分けたほうがずっと安定します。'},
+    {t:'staff', cap:'5/4 — 四分音符5つ。3＋2 で数えると迷いません',
+      seq:['quarter','quarter','quarter','quarter','quarter'],
+      opt:{totalTick:240, meterSig:[5,4]}, plays:[{bpm:100, label:'聴く'}]},
+    {t:'box', h:'5拍子 → <span class="eq">3＋2</span> または <span class="eq">2＋3</span>　／　7拍子 → <span class="eq">2＋2＋3</span> や <span class="eq">3＋2＋2</span>'},
+    {t:'p', h:'どちらに分けるかは曲が決めます。譜面の連桁やドラムのアクセントを見れば、たいてい書いてあるとおりに分かれています。<b>自分で勝手に決めず、曲の側の区切りに従う</b>のがコツです。'},
+    {t:'p', h:'7/8 も同じ考え方です。八分音符7つを2・2・3 に分けると、「1と2と3とー」という数え方になります。'},
+    {t:'staff', cap:'7/8 — 八分音符7つ。2＋2＋3 のまとまりで捉えます',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{totalTick:168, meterSig:[7,8], beam:true}, plays:[{bpm:104, label:'♩＝104 で聴く'}]},
+    {t:'p', h:'変拍子でいちばん多い失敗は、<b>小節の頭を見失う</b>ことです。まとまりの数え方を口に出して固定してしまえば、あとは4拍子と変わりません。'},
+    {t:'key', h:'この教材では5拍子・7拍子などを変拍子と呼びます（6/8などの複合拍子は含みません）。小さなまとまりに分けて数え、分け方は曲が決めます。'},
+    {t:'note', h:'◦ 「変拍子」という言葉の範囲は書き手によって幅があります。ここでは5拍子・7拍子など、2・3・4拍子の枠に収まらないものを指す、という約束で読んでください。<br>◦ 有名な例では、5/4 のジャズや、7/8 を含むプログレッシブ・ロックがあります。聴き慣れると、変拍子は「変わっている」というより「まとまりの数が違うだけ」に感じられます。'}
+  ],
+  quiz:[
+    {q:'5拍子を安定して数える方法として、この節がすすめているのはどれですか。', opts:[
+      '1から5まで通して数える','3＋2 や 2＋3 に分けて数える','2拍子として数える','数えずに感覚で捉える'],
+      a:1, exp:'小さなまとまりに分ければ、既に知っている形の組み合わせになります。'},
+    {q:'7/8 のよくある分け方はどれですか。', opts:[
+      '1＋6','2＋2＋3','4＋3＋1','7つを均等に'],
+      a:1, exp:'2＋2＋3 や 3＋2＋2 が一般的です。'},
+    {q:'まとまりの分け方は、何によって決まりますか。', opts:[
+      '演奏者の好み','曲の側の区切り（連桁やアクセント）','テンポ','使う楽器'],
+      a:1, exp:'譜面の連桁やドラムのアクセントが、たいてい分け方を示しています。'},
+    {q:'いま鳴ったのは、1小節に四分音符がいくつ入る拍子ですか。', opts:['A','B','C','D'], a:2,
+      exp:'四分音符5つ。5拍子です。4拍でも3拍でも収まりません。',
+      ear:{bpm:100, choices:[
+        {seq:['quarter','quarter','quarter'], opt:{totalTick:144, meterSig:[3,4]}},
+        {seq:['quarter','quarter','quarter','quarter'], opt:{meterSig:[4,4]}},
+        {seq:['quarter','quarter','quarter','quarter','quarter'], opt:{totalTick:240, meterSig:[5,4]}},
+        {seq:['quarter','quarter'], opt:{totalTick:96, meterSig:[2,4]}}
+      ]}}
+  ]
+},
+{
+  no:4, title:'拍子の切り替え',
+  lead:'曲の途中で拍子が変わることがあります。変わるときに何がそろうのかを知っておけば、慌てません。',
+  goal:'拍子が変わるとき、何を基準にすればいいかが分かる。1小節だけ違う拍子が挟まっても慌てない。',
+  blocks:[
+    {t:'p', h:'曲の途中で拍子が変わるときは、その位置に新しい拍子記号が書かれます。読み方は曲頭と同じですが、演奏する側には <b>何を基準にして次へ渡すか</b> という問題が生まれます。'},
+    {t:'p', h:'いちばん多いのは、<b>1拍の長さがそのまま変わらない</b> ケースです。4/4 から 3/4 に変わっても、四分音符の長さは同じ。拍の数が減るだけなので、数えている速さを変える必要はありません。'},
+    {t:'staff', cap:'4/4 のあとに 3/4 が来ても、四分音符の長さは同じ',
+      seq:['quarter','quarter','quarter'], opt:{totalTick:144, meterSig:[3,4]},
+      plays:[{bpm:96, label:'聴く'}]},
+    {t:'p', h:'やっかいなのは、単純拍子と複合拍子のあいだで変わるときです。4/4 から 6/8 に変わる場合、'},
+    {t:'box', h:'<span class="eq">八分＝八分</span>で渡す　→　拍は遅くなる（1拍が付点四分になるため）　／　<span class="eq">四分＝付点四分</span>で渡す　→　拍の速さは変わらない'},
+    {t:'p', h:'どちらにするかは曲によって変わり、譜面に「♪＝♪」「♩＝♪.」のように書かれます。<b>指示があれば必ずそれに従う</b>。書かれていない場合は、原曲を聴いて確かめるしかありません。'},
+    {t:'p', h:'ポップスでいちばんよく出会うのは、歌のフレーズの都合で <b>1小節だけ 2/4 が挟まる</b> 形です。4拍・4拍・4拍・2拍・4拍…といった具合。ここで「小節を1つ飛ばした」と勘違いしやすいのですが、拍子が変わっているだけで、拍の速さは何も変わっていません。'},
+    {t:'staff', cap:'途中に挟まる 2/4 の小節。四分音符2つぶん',
+      seq:['quarter','quarter'], opt:{totalTick:96, meterSig:[2,4]},
+      plays:[{bpm:96, label:'聴く'}]},
+    {t:'key', h:'拍子が変わっても、ふつうは1拍の長さがそのまま渡されます。単純と複合のあいだでは、譜面の指示（♩＝♪. など）に従います。'},
+    {t:'note', h:'◦ 変わり目でつまずくのは、たいてい変わったあとではなく <b>変わる直前</b> です。手前の小節を最後まできっちり数えておけば、次の小節は素直に入れます。'}
+  ],
+  quiz:[
+    {q:'4/4 から 3/4 に変わるとき、ふつう何が変わりませんか。', opts:[
+      '小節の長さ','1拍の長さ','拍の数','強拍の位置'],
+      a:1, exp:'四分音符の長さはそのまま。1小節に入る拍の数が減るだけです。'},
+    {q:'譜面に「♩＝♪.」と書かれていたら、何を意味しますか。', opts:[
+      'テンポを上げる','四分音符と付点四分音符を同じ長さで渡す','付点を無視する','三連符で演奏する'],
+      a:1, exp:'切り替えの前後で、何と何がそろうのかを示す指示です。'},
+    {q:'曲の途中に 2/4 の小節が1つ挟まっているとき、拍の速さはどうなりますか。', opts:[
+      '速くなる','遅くなる','変わらない','2倍になる'],
+      a:2, exp:'拍子が変わっただけで、1拍の長さは変わりません。'}
+  ]
+},
+{
+  no:5, title:'テンポの揺れ',
+  lead:'速さを変える指示にも決まった書き方があります。どこで揺らすかは、曲の設計の一部です。',
+  goal:'テンポ変化の記号が読める。クリックがある現場での扱い方も分かる。',
+  blocks:[
+    {t:'p', h:'テンポは最初から最後まで一定とはかぎりません。速さを変える指示には、決まった書き方があります。'},
+    {t:'box', h:'<span class="eq">rit.</span>（リタルダンド）＝だんだん遅く　／　<span class="eq">accel.</span>（アッチェレランド）＝だんだん速く　／　<span class="eq">a tempo</span>＝もとの速さに戻す　／　<span class="eq">rubato</span>＝自由に揺らして'},
+    {t:'p', h:'もうひとつ、音符の上に付く <b>フェルマータ</b>（⌒に点）があります。これは「その音を十分に伸ばす」という指示で、伸ばす長さは決まっていません。指揮者やバンドの合図で次へ進みます。'},
+    {t:'p', h:'ポップスやロックで揺らす場所は、だいたい決まっています。<b>曲の終わり</b>、<b>イントロや間奏の入り口</b>、<b>キメの直前</b>。曲全体をずっと揺らすことはまれで、ここぞという1か所に集中させるほうが効きます。'},
+    {t:'p', h:'現場で知っておきたいのが、クリックとの付き合い方です。<b>テンポが固定されたクリックや同期音源に合わせる場合、演奏側だけで rit. をかけるとずれてしまいます</b>。打ち込みは指示どおりに進んでくれません。'},
+    {t:'p', h:'その場合、表現は別の手段で作ります。音量を落とす、音数を減らす、音の切り際を長くする。<b>テンポを動かさずに「遅くなったように聴かせる」</b>のは、現場でよく使われる技術です。'},
+    {t:'key', h:'rit.・accel.・a tempo・rubato・フェルマータ。テンポが固定されたクリックに合わせるときは演奏側だけで揺らせないので、音量や音数で代わりを作ります。'},
+    {t:'note', h:'◦ DAW側にテンポの変化をあらかじめ書き込んでおけば、クリックのほうを遅くすることもできます。「クリックがあるから絶対に揺らせない」のではなく、<b>あらかじめ仕込んであるかどうか</b>の問題です。<br>◦ 揺らす場所を決めるのはアレンジの仕事です。演奏中に思いつきで揺らすと、ほかのパートは付いてこられません。バンドで揺らすなら、事前に「どこで、どのくらい」を共有しておきます。'}
+  ],
+  quiz:[
+    {q:'「a tempo」は何を指示していますか。', opts:[
+      'だんだん遅く','だんだん速く','もとの速さに戻す','自由に揺らす'],
+      a:2, exp:'rit. や accel. のあとに、元のテンポへ戻す指示です。'},
+    {q:'テンポが固定されたクリックに合わせている場面で、演奏側だけ rit. をかけるとどうなりますか。', opts:[
+      'クリックとずれる','クリックも一緒に遅くなる','問題なく揺らせる','テンポが自動で戻る'],
+      a:0, exp:'クリック側にあらかじめテンポ変化が書き込まれていないかぎり、演奏だけがずれます。'},
+    {q:'テンポを動かさずに「遅くなったように聴かせる」方法として、この節が挙げているのはどれですか。', opts:[
+      '音を高くする','音量を落とし音数を減らす','拍子を変える','ピックを変える'],
+      a:1, exp:'テンポは保ったまま、密度と音量で印象を作ります。'}
+  ]
+},
+{
+  no:6, title:'練習の組み立て',
+  lead:'リズムは、練習の順番を工夫するとかなり身につけやすくなります。段階を踏むのが近道です。',
+  goal:'メトロノームの使い方を段階的に組み立てられる。テンポの上げ方も決められる。',
+  blocks:[
+    {t:'p', h:'リズムの練習には順番があります。いきなり楽器で弾くより、段階を踏んだほうが結果的に速い。ここまでの内容を通して言えるのは、だいたいこれです。'},
+    {t:'box', h:'① 声に出して数える　→　② 手で叩く　→　③ 楽器で弾く　→　④ 録音して聴く'},
+    {t:'p', h:'①でつまずくなら、譜面がまだ読めていません。第2部7節の読み下しに戻ります。②で崩れるなら、リズム自体は分かっているのに体が付いていない状態。③まで進んでから崩れるなら、それは運指やフォームの問題で、リズムの問題ではありません。<b>どこで崩れたかが、次にやるべきことを教えてくれます</b>。'},
+    {t:'p', h:'メトロノームの使い方にも段階があります。ずっと四分で鳴らしていると、クリックに頼って自分では拍を持たないままになりがちです。'},
+    {t:'box', h:'四分で鳴らす　→　<span class="eq">2拍めと4拍め</span>だけ鳴らす　→　<span class="eq">1小節に1回</span>だけ鳴らす　→　鳴らさずに弾く'},
+    {t:'p', h:'2拍4拍に移した時点で、自分の中に拍がないと合わせられなくなります。ここが最初の関門。1小節に1回まで減らせれば、拍は自分のものになっています。'},
+    {t:'p', h:'テンポの上げ方は、確実に弾ける速さから <b>目安として5〜10 BPM ずつ</b>。曲や難易度によって適切な幅は変わるので、数字にこだわる必要はありません。上げてみて崩れたら、迷わず下げます。弾けない速さで繰り返すのは、弾けないフォームを覚える練習です。'},
+    {t:'p', h:'最後に録音です。演奏中は自分のズレに気づきにくいので、録って聴くと分かりやすい。走っている場所も、裏拍が詰まっている場所も、あとから聴くとはっきりします。'},
+    {t:'key', h:'声→手→楽器→録音の順。メトロノームは四分から2拍4拍、1小節1回へと減らしていきます。テンポは目安として5〜10 BPM ずつ。崩れた段階が、次にやるべきことです。'},
+    {t:'note', h:'◦ 短時間でも毎日やるほうが、まとめて長時間やるより効きます。リズムは知識ではなく体の習慣なので、間隔が空くと戻ってしまいます。'}
+  ],
+  quiz:[
+    {q:'この節がすすめる練習の順番はどれですか。', opts:[
+      '楽器で弾く→手で叩く→声に出す','声に出す→手で叩く→楽器で弾く→録音','録音→楽器→声','手で叩く→録音→声'],
+      a:1, exp:'段階を踏むほうが、結果的に速く身につきます。'},
+    {q:'メトロノームを2拍めと4拍めだけに減らすと、何が試されますか。', opts:[
+      '音量の調整','自分の中に拍を持てているか','指の速さ','譜面を読む速さ'],
+      a:1, exp:'クリックに頼らず拍を保てているかどうかが、ここではっきりします。'},
+    {q:'テンポを上げてみて崩れたときは、どうしますか。', opts:[
+      'そのまま繰り返す','さらに上げる','下げる','メトロノームを止める'],
+      a:2, exp:'弾けない速さでの反復は、弾けないフォームを覚える練習になってしまいます。'}
+  ]
+},
+{
+  no:7, title:'耳コピでのリズム把握',
+  lead:'音を探す前に、リズムの枠組みを決める。順番を守れば、耳コピはずっと楽になります。',
+  goal:'耳コピでリズムを把握する手順が使える。表か裏かを判別できる。',
+  blocks:[
+    {t:'p', h:'耳コピというと音の高さを探す作業だと思われがちですが、<b>先にリズムの枠組みを決める</b>ほうが確実です。枠が決まっていないと、正しい音を見つけてもどこに置けばいいか分かりません。'},
+    {t:'box', h:'① テンポを取る　→　② 拍子を決める　→　③ 小節の頭を見つける　→　④ ドラムの位置を把握　→　⑤ ギターの刻みを聴く'},
+    {t:'p', h:'①は足でトントンやりながら、メトロノームを合わせていくのが早道です。数字が決まると、以降の作業が一気に楽になります。'},
+    {t:'p', h:'②と③はセットです。<b>スネアが鳴る場所を2拍めと4拍めと仮定</b>すると、その手前が1拍め。バスドラムの位置も合わせて確認すれば、たいていの曲は4/4として枠が決まります。合わない場合に、はじめて3拍子や変拍子を疑います。'},
+    {t:'p', h:'いちばんつまずくのが <b>表か裏かの判別</b> です。ギターの刻みが裏拍から始まっているのに表と思い込むと、全体が半拍ずれたまま完成してしまいます。判別のコツは、<b>自分で1拍めから数えながら聴く</b>こと。音に合わせて数えると音のほうに引っぱられるので、先に数え始めてから音を入れます。'},
+    {t:'p', h:'速くて聴き取れない箇所は、再生速度を落とします。ピッチが変わらない機能を使えば、リズムだけを確かめられる。<b>細かいリズムは、遅くすれば聴き取れることがほとんど</b>です。聴き取れないのは耳のせいというより、速さのせいだと考えてください。'},
+    {t:'p', h:'最後に、聴き取った内容を第2部の書き方で譜面に落としてみてください。書ければ、正しく捉えられている証拠になります。'},
+    {t:'key', h:'テンポ→拍子→小節の頭→ドラム→刻み、の順。表か裏かは、自分で数え始めてから音を入れて確かめます。'},
+    {t:'note', h:'◦ ゴーストノートやブラッシングは、最初は聴こえません。はっきりした音を先に取り、あとから隙間を埋めていくと確実です。'}
+  ],
+  quiz:[
+    {q:'耳コピでリズムを把握するとき、最初にすることはどれですか。', opts:[
+      '音の高さを探す','テンポを取る','コードを調べる','速度を落とす'],
+      a:1, exp:'枠組みが決まっていないと、音を見つけても置き場所が決まりません。'},
+    {q:'4/4 の曲で、小節の頭を見つける手がかりはどれですか。', opts:[
+      'いちばん高い音','スネアの位置を2拍め・4拍めと仮定する','いちばん長い音','ギターの音色'],
+      a:1, exp:'スネアの位置が分かれば、その手前が1拍めになります。'},
+    {q:'刻みが表か裏かを確かめる方法として、この節が挙げているのはどれですか。', opts:[
+      '音に合わせて数える','先に自分で数え始めてから音を入れる','音量を上げて聴く','譜面を見ながら聴く'],
+      a:1, exp:'音に合わせて数えると、音のほうに引っぱられてしまいます。'}
+  ]
+},
+{
+  no:8, title:'アンサンブルの中で',
+  lead:'ひとりで正確に弾けることと、合わせられることは別の技術です。最後はそこを扱います。',
+  goal:'合奏で誰の何を聴けばいいかが分かる。ずれたときの立て直し方も分かる。',
+  blocks:[
+    {t:'p', h:'ひとりで完璧に弾けても、バンドに入ると合わない —— これはよくあることです。合奏には合奏の技術があります。'},
+    {t:'p', h:'まず、<b>誰の何を聴くか</b>。基本はドラムです。それも全体ではなく、細かい刻みなら <b>ハイハット</b>、大きな枠なら <b>スネアの2拍め・4拍め</b>。ドラム全体をぼんやり聴くより、ひとつに絞ったほうが合います。'},
+    {t:'p', h:'ベースとの関係も大事です。ギターのカッティングとベースの音の位置がそろっていないと、どれだけ正確でも噛み合って聴こえません。'},
+    {t:'p', h:'次に、<b>自分の拍を持ち続ける</b>こと。人に合わせにいくだけだと、全員が全員に合わせようとして、結局どこにも基準がなくなります。自分の中に拍を持ったうえで、それを共有する —— これが第1部1節で見た「拍を合わせる」の実際です。'},
+    {t:'p', h:'ずれたときの立て直しにもコツがあります。<b>ずれた瞬間に直そうとしない</b>こと。演奏の途中で急に位置を変えると、周りがさらに乱れます。'},
+    {t:'box', h:'ずれたら　→　弾くのをいったん減らすか止める　→　<span class="eq">次の小節の頭</span>で戻る'},
+    {t:'p', h:'小節の頭は全員が共有している場所なので、そこで合流するのが最も確実です。だからこそ、演奏中に <b>いま何小節めの何拍めか</b> を数え続けている必要があります。'},
+    {t:'p', h:'最後にひとつ。<b>音量が大きいパートほど、リズムの責任は重くなります</b>。大きな音がずれると、全体が引きずられるからです。逆に、自分の音を少し下げるだけでアンサンブルが締まることもあります。'},
+    {t:'key', h:'ドラムのひとつに絞って聴き、自分の拍は持ち続ける。ずれたら小節の頭で戻る。音量が大きいほどリズムの責任は重くなります。'},
+    {t:'note', h:'◦ ここまでで、拍の感じ方から合奏までひととおり扱いました。あとは実際に音を出しながら、必要になった節へ戻ってきてください。読んで分かることと、体が動くことのあいだには、練習の時間だけが必要です。'}
+  ],
+  quiz:[
+    {q:'合奏で細かい刻みを合わせたいとき、ドラムの何を聴くとよいですか。', opts:[
+      'バスドラム','ハイハット','タム','シンバル全体'],
+      a:1, exp:'細かい刻みはハイハット、大きな枠はスネアの2拍め・4拍めが手がかりになります。'},
+    {q:'演奏中にずれてしまったとき、どうするのがよいですか。', opts:[
+      'すぐに位置を修正する','いったん減らして次の小節の頭で戻る','テンポを上げて追いつく','演奏をやめる'],
+      a:1, exp:'途中で急に位置を変えると周りが乱れます。小節の頭は全員が共有している場所です。'},
+    {q:'アンサンブルにおけるリズムの責任について、正しいものはどれですか。', opts:[
+      '全パート同じ','音量が大きいパートほど重い','音が高いパートほど重い','人数の多いパートほど重い'],
+      a:1, exp:'大きな音がずれると、全体が引きずられます。'}
+  ]
+},
+];
+
+
+</script>
+<script>
+
+"use strict";
+/* ============================================================
+   リズムの基礎 — 学習ツール
+   ★ツール名はこの2行を書き換えるだけで全画面に反映されます
+============================================================ */
+const APP_NAME = 'Woodpecker';
+const APP_SUB  = '拍・音の長さ・ノリを順番に';
+
+/* ---------- 進捗の保存（失敗しても動作は続く） ---------- */
+const PKEY = 'rhythm-basics.progress';
+let PROG = {};
+function loadProg(){
+  try{ PROG = JSON.parse(localStorage.getItem(PKEY) || '{}') || {}; }
+  catch(e){ PROG = {}; }
+}
+function saveProg(){
+  try{ localStorage.setItem(PKEY, JSON.stringify(PROG)); }catch(e){}
+}
+const LKEY = 'rhythm-basics.last';
+let LAST = null;                 // 最後に開いた節 {p,s}
+let OPEN = null;                 // 目次で開いている部（null なら最後に読んだ部）
+function loadLast(){
+  try{ LAST = JSON.parse(localStorage.getItem(LKEY) || 'null'); }catch(e){ LAST = null; }
+}
+function saveLast(p,s){
+  LAST = {p:p, s:s};
+  try{ localStorage.setItem(LKEY, JSON.stringify(LAST)); }catch(e){}
+}
+/* 正解ずみの問題番号を節ごとに保存する */
+const SKEY = 'rhythm-basics.solved';
+let SOLVED = {};
+function loadSolved(){
+  try{ SOLVED = JSON.parse(localStorage.getItem(SKEY) || '{}') || {}; }catch(e){ SOLVED = {}; }
+}
+function saveSolved(){
+  try{ localStorage.setItem(SKEY, JSON.stringify(SOLVED)); }catch(e){}
+}
+const solvedOf = (p,s) => SOLVED[p + '-' + s] || [];
+function addSolved(p,s,i){
+  const k = p + '-' + s;
+  const a = SOLVED[k] || (SOLVED[k] = []);
+  if(a.indexOf(i) < 0){ a.push(i); saveSolved(); }
+}
+function clearSolved(p,s){ delete SOLVED[p + '-' + s]; saveSolved(); }
+
+const doneKey = (p,s) => p + '-' + s;
+const isDone = (p,s) => !!PROG[doneKey(p,s)];
+function markDone(p,s){ PROG[doneKey(p,s)] = true; saveProg(); }
+
+/* ---------- 小道具 ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const normSeq = seq => seq.map(o => typeof o === 'string'
+  ? {key:o, tick:DUR[o].tick}
+  : Object.assign({}, o, {tick: o.tick != null ? o.tick : DUR[o.key].tick}));
+
+/* 音符・休符の一覧表 */
+function durTable(rest){
+  const rows = Object.keys(DUR).map(k=>{
+    const d = DUR[k];
+    const nm = rest ? d.name.replace('音符','休符') : d.name;
+    return `<tr><td><div class="gl">${noteGlyph(k,{w:44,h:52,rest:rest})}</div></td>
+      <td class="nm">${nm}</td><td class="val">${beatStr(d.tick)}</td></tr>`;
+  }).join('');
+  return `<table class="tbl"><thead><tr><th>かたち</th><th>名前</th><th>長さ</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+/* ============================================================
+   第1部の内容
+============================================================ */
+const P1 = [
+{
+  no:1, title:'拍とは何か',
+  lead:'曲が始まってから終わるまで、ずっと一定の速さで進み続けている脈。これが拍です。音として鳴っているとはかぎりません。',
+  goal:'拍が「音」ではなく「時間の目盛り」だと分かる。休符のあいだも拍を止めずに進められる。',
+  blocks:[
+    {t:'p', h:'音楽を聴いていると、自然に足でトントンとやってしまうことがあります。あのトントンが <span class="kw">拍（ビート）</span>。曲が進んでいくあいだ、ずっと一定の間隔で刻まれている時間の目盛りです。'},
+    {t:'p', h:'まず押さえたいのは、<b>拍は音そのものではない</b>ということ。ドラムが鳴っていなくても、ギターが休んでいても、拍は同じ速さで進み続けています。休符は「拍が止まる」のではなく「拍は進んでいるのに音を出さない」状態です。'},
+    {t:'staff', cap:'4分音符4つ。1・2・3・4と拍がまっすぐ進みます',
+      seq:['quarter','quarter','quarter','quarter'], opt:{meterSig:[4,4]},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'次は2拍めと4拍めを休符にしたもの。音は減りましたが、<b>拍の進み方はまったく同じ</b>です。聴き比べてみてください。'},
+    {t:'staff', cap:'2拍めと4拍めが休符。それでも拍は同じ速さで進む',
+      seq:['quarter',{key:'quarter',rest:true},'quarter',{key:'quarter',rest:true}], opt:{meterSig:[4,4]},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'バンドで演奏するとき、全員がこの見えない脈を共有しています。合奏がそろうのは、音を合わせているからではなく、<b>拍を合わせている</b>からです。ひとりで練習するときも同じで、まず拍が体の中にあるかどうかで、出てくる音がまるで変わります。'},
+    {t:'key', h:'拍は音ではなく、時間の目盛り。音が鳴っていない場所でも拍は進んでいます。'},
+    {t:'note', h:'◦ 弾き間違えたときに手が止まってしまうのは、拍まで一緒に止めてしまっているからです。ミスしても拍は進めたまま、次の拍から戻れるようにしておくと、合奏で立て直せるようになります。'}
+  ],
+  quiz:[
+    {q:'拍について、正しい説明はどれですか。', opts:[
+      '曲の中で鳴っている音そのもののこと',
+      '曲のあいだ、一定の間隔で刻まれ続けている時間の目盛り',
+      '楽譜の縦線で区切られたまとまりのこと',
+      '一番大きな音が鳴る場所のこと'],
+      a:1, exp:'拍は鳴っている音ではなく、曲のあいだずっと一定の間隔で刻まれている脈です。3番目は小節の説明になります。'},
+    {q:'休符が書かれている場所では、拍はどうなりますか。', opts:[
+      'いったん止まって、次の音から再開する',
+      '半分の速さになる',
+      '音は出ないが、同じ速さで進み続ける',
+      '拍子記号によって止まるかどうかが変わる'],
+      a:2, exp:'休符は「休む」という指示であって、拍を止める指示ではありません。拍は進み続けます。'},
+    {q:'合奏がそろって聴こえるのは、演奏者どうしが何を共有しているからですか。', opts:[
+      '同じ音量','同じ拍','同じ弦の太さ','同じ楽器'],
+      a:1, exp:'音量や音色ではなく、見えない拍を共有していることが、そろって聴こえる正体です。'}
+  ]
+},
+{
+  no:2, title:'テンポとBPM',
+  lead:'拍の速さを数字で表したものがテンポ。単位はBPM＝1分間に入る拍の数です。',
+  goal:'BPMから1拍の秒数が出せる。テンポを変えても音符どうしの比は変わらない、と分かる。',
+  blocks:[
+    {t:'p', h:'拍の速さを表すのが <span class="kw">テンポ</span> です。楽譜には「♩＝120」、DAWやメトロノームには「120 BPM」と書かれます。<b>BPM は Beats Per Minute、1分間に拍がいくつ入るか</b>という意味。120なら1分間に120拍です。'},
+    {t:'p', h:'1拍の長さは割り算で出せます。'},
+    {t:'box', h:'<span class="eq">1拍の秒数 ＝ 60 ÷ BPM</span>　／　♩＝120 なら 60÷120＝<b>0.5秒</b>、♩＝60 なら <b>1秒</b>'},
+    {t:'p', h:'テンポが変わっても、<b>音符どうしの長さの比は変わりません</b>。四分音符に対して八分音符が半分、という関係は速くしても遅くしてもそのままです。変わるのは全体の速さだけ。下の譜面は同じものを2つのテンポで鳴らします。'},
+    {t:'staff', cap:'同じ譜面をテンポだけ変えて聴く',
+      seq:['quarter','eighth','eighth','quarter','quarter'], opt:{meterSig:[4,4], beam:true},
+      plays:[{bpm:60, label:'♩＝60 で聴く'},{bpm:120, label:'♩＝120 で聴く'}]},
+    {t:'p', h:'テンポの数字は、練習の設計図にもなります。まず確実に弾ける速さを見つけて、そこから 5〜10 ずつ上げていく。「弾けない速さで繰り返す」のは、弾けないフォームを覚える練習になってしまいます。'},
+    {t:'key', h:'BPM は1分間の拍数。1拍の秒数は 60÷BPM。テンポを変えても音符どうしの比は変わりません。'},
+    {t:'note', h:'◦ この 60÷BPM という計算は、ディレイタイムを合わせるときとまったく同じものです。♩＝120 で四分音符ぶんのディレイなら 500ms、八分音符ぶんならその半分の 250ms になります。'}
+  ],
+  quiz:[
+    {q:'♩＝120 のとき、1拍の長さは何秒ですか。', opts:['0.25秒','0.5秒','1秒','2秒'],
+      a:1, exp:'60÷120＝0.5秒です。'},
+    {q:'BPM の数字を大きくすると、1拍の長さはどうなりますか。', opts:[
+      '長くなる','短くなる','変わらない','拍子によって変わる'],
+      a:1, exp:'1分間に入る拍の数が増えるので、1拍あたりは短くなります。'},
+    {q:'テンポを速くしたとき、四分音符と八分音符の長さの関係はどうなりますか。', opts:[
+      '八分音符のほうが相対的に長くなる',
+      '八分音符のほうが相対的に短くなる',
+      '2対1の関係のまま変わらない',
+      '拍子記号によって変わる'],
+      a:2, exp:'テンポが変わるのは全体の速さだけで、音符どうしの比は常に一定です。'}
+  ]
+},
+{
+  no:3, title:'小節と拍子記号',
+  lead:'拍は決まった数でまとまります。そのまとまりが小節、まとめ方を示すのが拍子記号です。',
+  goal:'拍子記号の上下の意味が読める。その1小節の長さが合っているかどうかを見分けられる。',
+  blocks:[
+    {t:'p', h:'拍がただ延々と並んでいるだけでは、どこが区切りか分かりません。そこで拍を一定の数ずつまとめ、縦線で区切ります。この区切られたひとまとまりが <span class="kw">小節</span> です。'},
+    {t:'p', h:'まとめ方を示すのが、曲の頭にある分数のような記号 —— <span class="kw">拍子記号</span>。読み方はシンプルです。'},
+    {t:'box', h:'<span class="eq">下の数字</span>＝ものさしにする音符（4なら四分音符）　／　<span class="eq">上の数字</span>＝1小節に入るその数'},
+    {t:'p', h:'つまり 4/4 は「四分音符が4つで1小節」。3/4 なら「四分音符が3つで1小節」です。'},
+    {t:'staff', cap:'4/4 — 四分音符4つでちょうど1小節',
+      seq:['quarter','quarter','quarter','quarter'], opt:{meterSig:[4,4]},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'staff', cap:'3/4 — 四分音符3つでちょうど1小節',
+      seq:['quarter','quarter','quarter'], opt:{totalTick:144, meterSig:[3,4]},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'小節の中身は四分音符でなくてもかまいません。八分音符や休符が混ざっても、<b>合計の長さが1小節ぶんになっていれば正しい</b>。4/4なら四分音符4つぶんの長さです。'},
+    {t:'staff', cap:'4/4 — 見た目は違っても、合計は四分音符4つぶん',
+      seq:['eighth','eighth','quarter',{key:'quarter',rest:true},'quarter'], opt:{meterSig:[4,4], beam:true},
+      plays:[{bpm:84, label:'聴く'}]},
+    {t:'key', h:'拍子記号は「下＝ものさしの音符／上＝その個数」。小節は合計の長さで決まります。'},
+    {t:'note', h:'◦ 4/4 のかわりに <b>C</b> のようなマークが書かれることがあります。これは4/4と同じ意味です。縦線が入った <b>¢</b> は2/2（アラ・ブレーヴェ）で、こちらは二分音符が1拍になります。'}
+  ],
+  quiz:[
+    {q:'3/4 の1小節には、四分音符がいくつ入りますか。', opts:['2つ','3つ','4つ','6つ'],
+      a:1, exp:'上の数字が「その音符がいくつ入るか」を表します。'},
+    {q:'2/4 の「下の4」は何を表していますか。', opts:[
+      '1小節に4拍あること','四分音符をものさしにすること','4小節でひとまとまりになること','テンポが4であること'],
+      a:1, exp:'下の数字はものさしにする音符の種類です。4なら四分音符。'},
+    {q:'4/4 の1小節として、長さが正しいものはどれですか。', opts:[
+      '四分音符3つ','二分音符1つ＋四分音符1つ','四分音符2つ＋八分音符4つ','八分音符6つ'],
+      a:2, exp:'四分音符2つで2拍、八分音符4つで2拍。合計4拍でぴったりです。'}
+  ]
+},
+{
+  no:4, title:'強拍と弱拍',
+  lead:'拍には重さの違いがあります。拍子とは「数」ではなく、重さの並び方のことです。',
+  goal:'4/4と3/4の強弱の並びが分かる。2/4との違いを「拍の数」ではなく「強拍の周期」で捉えられる。',
+  blocks:[
+    {t:'p', h:'4/4 の4つの拍は、どれも同じ重さには感じません。基本的な感じ方としては、1拍めがいちばん重く、次に3拍め。2拍めと4拍めは軽くなります。この重い拍を <span class="kw">強拍</span>、軽い拍を <span class="kw">弱拍</span> と呼びます。'},
+    {t:'html', h:`<div class="beatgrid">
+      <div class="bt strong"><div class="num">1</div><div class="lv">強</div></div>
+      <div class="bt"><div class="num">2</div><div class="lv">弱</div></div>
+      <div class="bt mid"><div class="num">3</div><div class="lv">中</div></div>
+      <div class="bt"><div class="num">4</div><div class="lv">弱</div></div></div>`},
+    {t:'p', h:'3/4 では並びが変わります。重いのは1拍めだけで、2・3拍めは軽いまま流れる。ワルツが独特の揺れ方をするのは、この並びのためです。'},
+    {t:'html', h:`<div class="beatgrid">
+      <div class="bt strong"><div class="num">1</div><div class="lv">強</div></div>
+      <div class="bt"><div class="num">2</div><div class="lv">弱</div></div>
+      <div class="bt"><div class="num">3</div><div class="lv">弱</div></div></div>`},
+    {t:'p', h:'見落とされやすいのですが、<b>4/4 と 2/4 は「拍が4つか2つか」だけの違いではありません</b>。2/4 は「強・弱」が2拍ごとに何度もやってきます。だから行進のように前へ前へ進む感じになる。4/4 は強い拍が4拍に1度なので、もっと大きくゆったり構えられます。数ではなく、重さの周期が表情を作っています。'},
+    {t:'p', h:'ギターで言えば、強拍でダウンストロークが自然に強く当たり、弱拍が軽く抜ける。意識しなくてもそうなるのは、体が拍の重さを感じている証拠です。'},
+    {t:'key', h:'拍子は拍の数ではなく、強拍と弱拍の並び方。典型的には4/4が「強・弱・中・弱」、3/4が「強・弱・弱」です。'},
+    {t:'note', h:'◦ ポップスやロックでは、この上に「2拍めと4拍めでスネアが鳴る」という別の習慣が乗ります。理論上は弱拍なのに、耳ではそこが目立つ。これがバックビートで、次の節でくわしく見ます。<br>◦ ここに書いた重さの並びは基本の感じ方です。曲やアレンジによっては、まったく違う場所が重く聴こえることもあります。'}
+  ],
+  quiz:[
+    {q:'4/4 で、基本的にいちばん強く感じる拍はどれですか。', opts:['1拍め','2拍め','3拍め','4拍め'],
+      a:0, exp:'1拍めが最も強く、3拍めがそれに次ぐ重さになります。'},
+    {q:'3/4 の拍の重さの並びは、典型的にはどれですか。', opts:[
+      '強・強・弱','強・弱・弱','弱・強・弱','強・弱・中'],
+      a:1, exp:'3/4 は1拍めだけが強く、あとは軽く流れます。'},
+    {q:'2/4 と 4/4 のいちばん本質的な違いは何ですか。', opts:[
+      'テンポが違う','強い拍がやってくる周期が違う','使える音符の種類が違う','小節線の書き方が違う'],
+      a:1, exp:'2/4は2拍ごと、4/4は4拍ごとに強拍が来ます。この周期の差が表情の差になります。'}
+  ]
+},
+{
+  no:5, title:'表拍と裏拍',
+  lead:'拍と拍のちょうど真ん中が裏拍。「1と2と」の“と”の位置です。',
+  goal:'表拍と裏拍を聴き分けられる。バックビート（2・4拍）と混同しなくなる。',
+  blocks:[
+    {t:'p', h:'四分音符の拍を「1・2・3・4」と数えているとき、その<b>あいだ</b>にも位置があります。八分音符で数えると「1 と 2 と 3 と 4 と」。数字のところが <span class="kw">表拍</span>、“と”のところが <span class="kw">裏拍</span> です。<b>この教材では、八分音符で数えたときの“と”の位置を裏拍として扱います</b>（十六分で数えるときは、さらに細かい位置が加わります）。'},
+    {t:'html', h:`<div class="cnt"><span class="on">1</span><span>と</span><span class="on">2</span><span>と</span><span class="on">3</span><span>と</span><span class="on">4</span><span>と</span></div>`},
+    {t:'staff', cap:'八分音符8つ。濃い位置が表拍、そのあいだが裏拍',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:84, label:'聴く'}]},
+    {t:'p', h:'ギターのストロークでは、これがそのまま手の動きに対応します。<b>基本的なオルタネイト・ストローク（ダウンとアップを交互に振る弾き方）では、ダウンが表拍、アップが裏拍</b>。手を8分で振り続けていれば、下ろしたときが数字、上げたときが“と”です。空ピック（弦に当てずに振る）が有効なのは、この対応関係を崩さずに済むからです。'},
+    {t:'p', h:'よくある混同を整理しておきます。ポップスで手拍子が2拍めと4拍めに来るのは <span class="kw">バックビート</span> と呼ばれますが、<b>2も4も表拍です</b>。裏拍とは別の話。「裏で手拍子」ではなく「弱拍で手拍子」と考えると混ざりません。'},
+    {t:'key', h:'表拍は数字の位置、裏拍は“と”の位置。オルタネイト・ストロークの基本形ではダウンが表、アップが裏。バックビート（2・4）は裏拍ではなく弱拍の話です。'},
+    {t:'note', h:'◦ 演奏が走る・もたるといった問題は、たいてい表拍ではなく裏拍で起きています。表拍だけを合わせにいくと、あいだが詰まったり空いたりする。裏拍を等間隔に置けるかどうかが、安定感の分かれ目です。'}
+  ],
+  quiz:[
+    {q:'「1 と 2 と 3 と 4 と」と数えたとき、裏拍はどれですか。', opts:[
+      '数字のところ','“と”のところ','1と3のところ','2と4のところ'],
+      a:1, exp:'拍と拍のちょうど真ん中、“と”の位置が裏拍です。'},
+    {q:'八分音符でオルタネイト・ストロークを振り続けるとき、アップが当たるのはどこですか。', opts:[
+      '表拍','裏拍','強拍だけ','小節の頭だけ'],
+      a:1, exp:'ダウンが表拍、アップが裏拍。この対応が崩れるとリズムが不安定になります。'},
+    {q:'ポップスの手拍子が入る2拍め・4拍めについて、正しい説明はどれですか。', opts:[
+      '裏拍にあたる','表拍のうちの弱拍にあたる','強拍にあたる','拍の外にある'],
+      a:1, exp:'2も4も数字の位置なので表拍です。そのうち重さが軽い弱拍にあたります。'}
+  ]
+},
+{
+  no:6, title:'カウントの取り方',
+  lead:'分割の数だけ言い方があります。声に出して数えられれば、その分割は弾けます。',
+  goal:'八分・十六分・三連のカウントを声に出して数えられる。リズムを言葉に置き換えて覚える方法も使える。',
+  blocks:[
+    {t:'p', h:'リズムが読めない原因の多くは、<b>数え方を持っていない</b>ことです。分割ごとに決まった言い方を用意しておくと、はじめて見る譜面でも位置が分かります。'},
+    {t:'box', h:'四分＝<span class="eq">1　2　3　4</span>　／　八分＝<span class="eq">1 と 2 と</span>　／　十六分＝<span class="eq">い ち と お</span>　／　三連＝<span class="eq">タ タ タ</span>'},
+    {t:'p', h:'十六分音符は1拍を4つに割るので、1拍あたり4つの言葉が要ります。数字を2つに伸ばして前half、そのあとに「と」「お」を足す —— <b>「い ち と お」</b>。2拍めなら「に い と お」、3拍めなら「さ ん と お」となります。'},
+    {t:'p', h:'この数え方の利点は、<b>3つめの「と」が八分の裏拍とぴったり同じ位置に来る</b>ことです。八分で「1 と」と数えていた場所が、そのまま十六分の中にも残ります。数え方を切り替えても、体の中の位置がずれません。'},
+    {t:'html', h:`<div class="cnt"><span class="on">い</span><span>ち</span><span>と</span><span>お</span><span class="on">に</span><span>い</span><span>と</span><span>お</span></div>`},
+    {t:'staff', cap:'十六分音符。1拍に4つずつ入ります',
+      seq:['sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','sixteenth','half'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:72, label:'聴く'}]},
+    {t:'p', h:'数字で数えるのがどうしても回らないときは、<b>リズムを言葉に置き換える</b>手があります。日本語は言葉の音の数をそろえるとリズムに乗せやすいので、知っている言葉をそのままリズムの型として使えます。'},
+    {t:'p', h:'このとき気をつけたいのが、言葉の音の数と <b>実際に音を出す回数</b> の違いです。ここを分けて考えると、うまくはまります。'},
+    {t:'box', h:'伸ばす <span class="eq">ー</span>　→　前の音の続き。出し直さない（タイに近い感じ）　／　小さい <span class="eq">っ</span>　→　一瞬止めるような感覚'},
+    {t:'p', h:'たとえば「ラーメン」。音を出すのは <b>ラ・メ・ン の3回</b>です。この3つの発音を、八分＋十六分＋十六分の位置に当てはめる。合わせてちょうど1拍になります。'},
+    {t:'p', h:'ここで大事なのは、<b>言葉そのものが音価なのではない</b>ということです。ふだんの発音の長さと、音楽の音価は別もの。言葉は、リズムの並びを覚えるための<b>ガイド</b>として使います。'},
+    {t:'box', h:'<span class="eq">バ・ナ・ナ</span>　→　三連符（3つ均等）　／　<span class="eq">ラー・メ・ン</span>　→　八分＋十六分2つ　／　<span class="eq">お・に・ぎ・り</span>、<span class="eq">た・こ・や・き</span>　→　十六分4つ　／　<span class="eq">コー・ヒー</span>　→　八分2つ　／　<span class="eq">う・め</span>　→　2つ均等'},
+    {t:'staff', cap:'ラー・メ・ン。八分＋十六分2つで1拍',
+      seq:['eighth','sixteenth','sixteenth','quarter','quarter','quarter'],
+      opt:{meterSig:[4,4], beam:true}, plays:[{bpm:76, label:'聴く'}]},
+    {t:'p', h:'人に教えるときにも、これはよく効きます。「ここはバナナのリズム」と言えば一発で伝わるものが、「三連符です」では伝わらないことがある。<b>まず言葉で体に入れて、あとから数字に置き換える</b>。遠回りに見えて、こちらのほうが速いことが多いです。'},
+    {t:'note', h:'◦ 小さい「っ」の例なら「らっこ」が便利です。「ら」で鳴らし、「っ」で止め、「こ」でまた鳴らす。1拍を3つに割って真ん中を抜いた形になります。第3部で扱うシャッフルと同じ形です。<br>◦ ただし言葉は入り口です。言葉のままだと、<b>いま何拍めにいるか</b>が分からなくなります。リズムの形が体に入ったら、数字のカウントに戻してください。'},
+    {t:'p', h:'練習のときは <b>足で四分、口で分割</b> と役割を分けます。足が拍のものさし、口が中身。この2つが独立して動くようになると、複雑なリズムでも迷子になりません。逆に、足まで一緒に細かく動いてしまうと、ものさしが消えてしまいます。'},
+    {t:'p', h:'声に出すのが恥ずかしくても、最初のうちは必ず出してください。頭の中だけで数えていると、実は数えていない箇所が生まれます。声はごまかせません。'},
+    {t:'key', h:'八分は「1 と」、十六分は「い ち と お」、三連は「タ タ タ」。足で四分、口で分割。声に出して数えられれば弾けます。'},
+    {t:'note', h:'◦ 数え方は流派によって違います。大事なのは自分の中で統一されていることなので、教室で使う言い方に合わせてかまいません。<br>◦ 言葉に置き換える方法は、リズムの形を覚えるのには向いていますが、拍の位置を数えるのには向きません。両方を使い分けてください。'}
+  ],
+  quiz:[
+    {q:'十六分音符を数えるときの言い方はどれですか。', opts:[
+      '1 と 2 と','い ち と お','タ タ タ','1 2 3 4'],
+      a:1, exp:'1拍を4つに割るので、1拍あたり4つの言葉を使います。'},
+    {q:'「い ち と お」の「と」は、どの位置と同じですか。', opts:[
+      '八分音符の裏拍','次の拍の頭','三連符の2つめ','小節の頭'],
+      a:0, exp:'1拍のちょうど真ん中なので、八分の裏拍と同じ場所です。だから数え方を切り替えても位置がずれません。'},
+    {q:'練習で足と口の役割を分けるとき、正しい組み合わせはどれですか。', opts:[
+      '足で分割、口で四分','足で四分、口で分割','足も口も分割','足も口も四分'],
+      a:1, exp:'足がものさし（四分）、口が中身（分割）。足まで細かく動かすと基準が消えます。'}
+  ]
+},
+{
+  no:7, title:'拍の分割',
+  lead:'音符の長さは、半分ずつに割れていく階層になっています。名前がそのまま分数です。',
+  goal:'音符の名前から長さが割り出せる。同じ長さを別の書き方に言いかえられる。',
+  blocks:[
+    {t:'p', h:'「四分音符」の“四分”は、<b>全音符を4つに分けた1つぶん</b>という意味です。長さのものさしになるのが全音符で、それを1とすると、二分は1/2、四分は1/4、八分は1/8、十六分は1/16。半分になるたびに、名前の数字が2倍になります。'},
+    {t:'box', h:'<span class="eq">全音符 ＝ 二分×2 ＝ 四分×4 ＝ 八分×8 ＝ 十六分×16</span>'},
+    {t:'p', h:'ふだんの演奏では <b>四分音符＝1拍</b> をものさしに数えるので、それぞれの長さは次のようになります。休符も1つずつ対応していて、音を出すかお休みするかが違うだけです。'},
+    {t:'html', h:'<p class="staffcap">音符</p>' },
+    {t:'durtable', rest:false},
+    {t:'html', h:'<p class="staffcap">休符</p>' },
+    {t:'durtable', rest:true},
+    {t:'p', h:'この階層が分かっていると、<b>見た目の違う譜面が同じ長さだと気づけます</b>。下の3つはどれも2拍ぶん。順番に聴くと、割り方が細かくなっていくだけなのがよく分かります。'},
+    {t:'staff', cap:'二分音符ひとつ ＝ 2拍', seq:['half'], opt:{totalTick:96}, plays:[{bpm:84,label:'聴く'}]},
+    {t:'staff', cap:'四分音符2つ ＝ 2拍', seq:['quarter','quarter'], opt:{totalTick:96}, plays:[{bpm:84,label:'聴く'}]},
+    {t:'staff', cap:'八分音符4つ ＝ 2拍', seq:['eighth','eighth','eighth','eighth'], opt:{totalTick:96, beam:true}, plays:[{bpm:84,label:'聴く'}]},
+    {t:'key', h:'音符の名前は全音符に対する分数。四分＝1拍を基準に、半分ずつ細かくなっていきます。'},
+    {t:'note', h:'◦ ここで扱ったのは2等分の階層だけです。1拍を3つに割る三連符は、この仕組みの外側にあります。付点やタイと合わせて第2部で扱います。'}
+  ],
+  quiz:[
+    {q:'四分音符1つは、八分音符いくつぶんですか。', opts:['1つ','2つ','4つ','8つ'],
+      a:1, exp:'八分音符は四分音符を半分にしたものなので、2つで四分音符1つぶんです。'},
+    {q:'全音符1つは、四分音符いくつぶんですか。', opts:['2つ','3つ','4つ','8つ'],
+      a:2, exp:'“四分”は全音符を4つに分けた1つぶん。だから4つで元に戻ります。'},
+    {q:'2拍ぶんの長さとして正しくないものはどれですか。', opts:[
+      '二分音符1つ','四分音符2つ','八分音符4つ','十六分音符4つ'],
+      a:3, exp:'十六分音符4つは四分音符1つぶん＝1拍です。2拍にするには8つ必要です。'},
+    {q:'いま鳴ったのは、どの分け方ですか。', opts:['A','B','C','D'], a:2,
+      exp:'四分音符が4つ。1拍ずつまっすぐ並んでいます。',
+      ear:{bpm:84, opt:{totalTick:192}, choices:[
+        ['half','half'],
+        ['whole'],
+        ['quarter','quarter','quarter','quarter'],
+        ['eighth','eighth','eighth','eighth','eighth','eighth','eighth','eighth']
+      ]}}
+  ]
+},
+{
+  no:8, title:'単純拍子と複合拍子',
+  lead:'1拍を2つに割るか、3つに割るか。ここで拍子は2つの系統に分かれます。',
+  goal:'6/8を2拍として感じられる。単純拍子と複合拍子を見分けられる。',
+  blocks:[
+    {t:'p', h:'ここまで見てきた 4/4・3/4・2/4 は、1拍がきれいに2等分できる拍子でした。これを <span class="kw">単純拍子</span> と呼びます。四分音符が1拍で、その中身は八分音符2つ。'},
+    {t:'p', h:'一方、<b>1拍が3等分される</b>系統もあります。これが <span class="kw">複合拍子</span>。代表が 6/8 です。'},
+    {t:'p', h:'6/8 でつまずきやすいのは、拍子記号の読み方をそのまま当てはめてしまうところです。「八分音符が6つ入る」のは正しい。でも <b>6拍に数えるわけではありません</b>。八分音符3つをひとまとまりにして、<b>2拍</b> のように感じます。'},
+    {t:'staff', cap:'6/8 — 八分音符3つずつが1拍。連桁の切れ目がそのまま拍の切れ目です',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{totalTick:144, meterSig:[6,8], beam:true},
+      plays:[{bpm:76, unit:'dotQuarter', label:'♩.＝76 で聴く'}]},
+    {t:'p', h:'6/8 では、通常は八分音符3つをひとまとまりとして感じます。そのまとまりの長さが <b>付点四分音符</b> です。単純拍子では四分音符ひとつぶんがまとまりの長さ、複合拍子では付点四分音符ひとつぶん。ここが2つの系統のいちばんの違いになります。'},
+    {t:'box', h:'単純拍子：1拍＝<span class="eq">四分音符</span>（中身は八分2つ）　／　複合拍子：1拍＝<span class="eq">付点四分音符</span>（中身は八分3つ）'},
+    {t:'p', h:'比べてみましょう。下は 3/4 で、こちらは四分音符が3つ＝3拍。譜面に並ぶ八分音符の数だけ見ると 6/8 と同じ6つですが、まとまり方がまったく違います。'},
+    {t:'staff', cap:'3/4 — 八分音符は同じ6つでも、2つずつで3拍にまとまる',
+      seq:['eighth','eighth','eighth','eighth','eighth','eighth'],
+      opt:{totalTick:144, meterSig:[3,4], beam:true}, plays:[{bpm:96, label:'♩＝96 で聴く'}]},
+    {t:'key', h:'1拍が2等分なら単純拍子（1拍＝四分音符）、3等分なら複合拍子（1拍＝付点四分音符）。6/8は6拍ではなく2拍です。'},
+    {t:'note', h:'◦ 3つ割りの感じは、シャッフルやスウィングにもつながっています。ただしそちらは拍子ではなく「はね方」の話なので、第3部で別に扱います。<br>◦ 9/8 は3拍、12/8 は4拍。上の数字を3で割ると、感じる拍の数が出ます。'}
+  ],
+  quiz:[
+    {q:'6/8 は、ふつういくつの拍として感じますか。', opts:['2拍','3拍','6拍','8拍'],
+      a:0, exp:'八分音符3つをひとまとまりにして、2拍として感じます。'},
+    {q:'複合拍子で1拍にあたる音符はどれですか。', opts:[
+      '四分音符','付点四分音符','二分音符','付点二分音符'],
+      a:1, exp:'八分音符3つぶん＝付点四分音符が1拍になります。'},
+    {q:'単純拍子と複合拍子を分けている基準は何ですか。', opts:[
+      '1小節に入る音符の数','1拍が2等分か3等分か','テンポが速いか遅いか','強拍の位置'],
+      a:1, exp:'1拍の中身が2つに割れるか3つに割れるか。これが2つの系統の分かれ目です。'},
+    {q:'いま鳴ったのは、2つずつのまとまりですか、3つずつですか。', opts:['A','B','C','D'], a:1,
+      exp:'八分音符3つずつのまとまり。6/8の感じ方です。',
+      ear:{bpm:84, opt:{totalTick:144, beam:true}, choices:[
+        ['quarter','quarter','quarter'],
+        ['eighth','eighth','eighth','eighth','eighth','eighth'],
+        ['dotQuarter','dotQuarter'],
+        ['half','quarter']
+      ]}}
+  ]
+}
+];
+
+/* ============================================================
+   全体の構成
+============================================================ */
+const PARTS = [
+  {no:1, title:'拍の土台', tag:'基礎', ready:true, sections:P1,
+   note:'拍・テンポ・拍子・強弱・表裏・カウント・分割・複合拍子。ここが全部の土台になります。'},
+  {no:2, title:'音価と記譜', tag:'基礎', ready:true, sections:P2,
+   note:'音符と休符の書き方、付点・タイ・連桁・三連符。譜面を正しく読むための決まりごとです。'},
+  {no:3, title:'リズムの型', tag:'実践', ready:true, sections:P3,
+   note:'8ビート・16ビートから、シャッフル、シンコペーション、食い、アクセントまで。現場で使う形をまとめます。'},
+  {no:4, title:'グルーヴと応用', tag:'応用', ready:true, sections:P4,
+   note:'ノリの作り方、変拍子、テンポの揺れ、練習と合奏。ここまでを実際の演奏につなげます。'}
+];
+
+/* ============================================================
+   描画
+============================================================ */
+const view = () => $('view');
+let CUR  = null;   // {part, idx} 表示中の節
+let NAV  = {prev:null, next:null};
+let QUIZ = false;  // 演習中かどうか
+
+function renderBlock(b){
+  if(b.t === 'p')    return `<p>${b.h}</p>`;
+  if(b.t === 'html') return b.h;
+  if(b.t === 'box')  return `<div class="box">${b.h}</div>`;
+  if(b.t === 'key')  return `<div class="keybox"><h4>ここだけ覚える</h4><p>${b.h}</p></div>`;
+  if(b.t === 'note') return `<p class="note">${b.h}</p>`;
+  if(b.t === 'durtable') return durTable(!!b.rest);
+  if(b.t === 'fig') return `<div class="staffwrap">
+      ${b.cap ? `<p class="staffcap">${b.cap}</p>` : ''}
+      <div class="stage">${figSVG(b.kind)}</div></div>`;
+  if(b.t === 'staff'){
+    const seq = normSeq(b.seq);
+    const id = 'st' + Math.random().toString(36).slice(2,9);
+    // unit:'dotQuarter' … 付点四分＝指定BPM。再生エンジンは四分基準なので1.5倍して渡す
+    const plays = (b.plays||[]).map(p=>{
+      const real = p.unit === 'dotQuarter' ? p.bpm * 1.5 : p.bpm;
+      return `<button class="playbtn" type="button" data-staff="${id}" data-bpm="${real}">${esc(p.label)}</button>`;
+    }).join('');
+    const tup = b.tuplets ? ` data-tuplets='${JSON.stringify(b.tuplets)}'` : '';
+    const stk = b.strokes ? ` data-strokes="${b.strokes}"` : '';
+    const acc = b.accents ? ` data-accents="${b.accents.join(',')}"` : '';
+    return `<div class="staffwrap" id="${id}"${tup}${stk}${acc}>
+      ${b.cap ? `<p class="staffcap">${b.cap}</p>` : ''}
+      <div class="stage">${staffSVG(seq, b.opt||{})}</div>
+      ${plays ? `<div class="playrow">${plays}</div>` : ''}
+      <script type="application/json" class="seqdata" data-for="${id}">${JSON.stringify(seq)}<\/script>
+    </div>`;
+  }
+  return '';
+}
+
+
+/* ---- 三連符の囲み（描画後に譜面へ足す） ---- */
+function decorateTuplets(){
+  const NS = 'http://www.w3.org/2000/svg';
+  view().querySelectorAll('.staffwrap[data-tuplets]').forEach(wrap=>{
+    let spans; try{ spans = JSON.parse(wrap.getAttribute('data-tuplets')); }catch(e){ return; }
+    const svg = wrap.querySelector('svg'); if(!svg) return;
+    const vb = (svg.getAttribute('viewBox')||'').split(' ').map(Number);
+    if(vb.length !== 4) return;
+    const grow = 18;
+    svg.setAttribute('viewBox', `${vb[0]} ${vb[1]-grow} ${vb[2]} ${vb[3]+grow}`);
+    svg.setAttribute('height', String(vb[3]+grow));
+    let add = '';
+    spans.forEach(sp=>{
+      const a = svg.querySelector(`.snote[data-src="${sp.from}"]`);
+      const b = svg.querySelector(`.snote[data-src="${sp.to}"]`);
+      if(!a || !b) return;
+      const x1 = parseFloat(a.getAttribute('data-cx')) - 7;
+      const x2 = parseFloat(b.getAttribute('data-cx')) + 7;
+      const mid = (x1 + x2) / 2, y = -9;
+      add += `<g class="tuplet">
+        <path d="M${x1} ${y+6} L${x1} ${y} L${mid-8} ${y}" fill="none" stroke="var(--stave)" stroke-width="1.3"/>
+        <path d="M${mid+8} ${y} L${x2} ${y} L${x2} ${y+6}" fill="none" stroke="var(--stave)" stroke-width="1.3"/>
+        <text x="${mid}" y="${y+4}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--stave)">${sp.label||'3'}</text>
+      </g>`;
+    });
+    if(add) svg.innerHTML = svg.innerHTML + add;
+  });
+}
+
+
+/* ---- ストロークの向き（∏／∨）とアクセントを譜面に足す ---- */
+function decorateMarks(){
+  view().querySelectorAll('.staffwrap[data-strokes], .staffwrap[data-accents]').forEach(wrap=>{
+    const svg = wrap.querySelector('svg'); if(!svg) return;
+    const cxOf = i => {
+      const n = svg.querySelector(`.snote[data-src="${i}"]`);
+      return n ? parseFloat(n.getAttribute('data-cx')) : null;
+    };
+    let add = '';
+    const acc = wrap.getAttribute('data-accents');
+    if(acc){
+      acc.split(',').forEach(v=>{
+        const x = cxOf(+v); if(x==null) return;
+        add += `<text class="accmark" x="${x}" y="60" text-anchor="middle" font-size="15" font-weight="700" fill="var(--accent)">&gt;</text>`;
+      });
+    }
+    const stk = wrap.getAttribute('data-strokes');
+    if(stk){
+      const yTop = 62, yBot = 71;
+      [...stk].forEach((c,i)=>{
+        const x = cxOf(i); if(x==null) return;
+        const dim = (c === 'x' || c === 'X');
+        const up  = (c === 'U' || c === 'u');
+        const col = 'var(--stave)';
+        const op  = dim ? '0.3' : '0.85';
+        const d = up
+          ? `M${x-4.5} ${yTop} L${x} ${yBot} L${x+4.5} ${yTop}`
+          : `M${x-4.5} ${yBot} L${x-4.5} ${yTop} L${x+4.5} ${yTop} L${x+4.5} ${yBot}`;
+        add += `<path class="stroke-mark" d="${d}" fill="none" stroke="${col}" stroke-width="1.6" opacity="${op}"/>`;
+      });
+    }
+    if(add) svg.innerHTML = svg.innerHTML + add;
+  });
+}
+
+/* ---- リズム譜・スラッシュ譜の図 ---- */
+function figSVG(kind){
+  const W = 340, y0 = 14, gap = 8, H = 86;
+  const ink = 'var(--ink)', st = 'var(--stave)';
+  let g = '';
+  for(let i=0;i<5;i++){ const y = y0+i*gap;
+    g += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="${st}" stroke-width="1"/>`; }
+  const bar = x => `<line x1="${x}" x2="${x}" y1="${y0}" y2="${y0+4*gap}" stroke="${st}" stroke-width="1.4"/>`;
+  const slash = x => `<line x1="${x-7}" y1="${y0+3*gap}" x2="${x+7}" y2="${y0+gap}" stroke="${ink}" stroke-width="6"/>`;
+  const cross = x => `<g stroke="${ink}" stroke-width="2.6" stroke-linecap="round">
+      <line x1="${x-5.5}" y1="${y0+2.7*gap}" x2="${x+5.5}" y2="${y0+1.3*gap}"/>
+      <line x1="${x-5.5}" y1="${y0+1.3*gap}" x2="${x+5.5}" y2="${y0+2.7*gap}"/></g>`;
+  const stem = x => `<line x1="${x+6.5}" y1="${y0+gap-1}" x2="${x+6.5}" y2="4" stroke="${ink}" stroke-width="1.8"/>`;
+  const beam = (xa,xb) => `<line x1="${xa+6.5}" y1="4.9" x2="${xb+6.5}" y2="4.9" stroke="${ink}" stroke-width="4"/>`;
+  g += bar(2) + bar(W-2);
+  if(kind === 'slash'){
+    [50,124,198,272].forEach(x => { g += slash(x); });
+  }else if(kind === 'rhythmslash'){
+    const p = [50,120,158,232,296];
+    g += slash(p[0]) + stem(p[0]);
+    g += slash(p[1]) + stem(p[1]) + slash(p[2]) + stem(p[2]) + beam(p[1],p[2]);
+    g += slash(p[3]) + stem(p[3]);
+    g += slash(p[4]) + stem(p[4]);
+  }else if(kind === 'mute'){
+    const p = [50,124,198,272];
+    g += slash(p[0]) + stem(p[0]);
+    g += cross(p[1]) + stem(p[1]);
+    g += slash(p[2]) + stem(p[2]);
+    g += cross(p[3]) + stem(p[3]);
+  }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+/* ---- 目次 ---- */
+function renderToc(){
+  CUR = null;
+  QUIZ = false;
+  NAV = {prev:null, next:null};
+  $('topbar').classList.add('hidden');
+  document.body.classList.remove('reading');
+  updateReadBar();
+  const parts = PARTS.map(p=>{
+    if(p.ready){
+      const total = p.sections.length;
+      const done  = p.sections.filter(s=>isDone(p.no, s.no)).length;
+      const items = p.sections.map(s=>{
+        const dn = isDone(p.no, s.no);
+        return `<li>
+        <button class="secbtn${dn?' is-done':''}" type="button" data-part="${p.no}" data-sec="${s.no}">
+          <span class="mk"></span>
+          <span class="n">${p.no}·${s.no}</span>
+          <span class="t">${esc(s.title)}</span>
+          ${dn?'<span class="done">修了</span>':''}
+        </button></li>`;}).join('');
+      const ticks = p.sections.map(s=>
+        `<i class="${isDone(p.no,s.no)?'on':''}"></i>`).join('');
+      const open = (OPEN === null) ? (p.no === (LAST ? LAST.p : 1)) : (OPEN === p.no);
+      return `<section class="part${open?'':' closed'}${done===total?' complete':''}" data-part="${p.no}">
+        <button class="part-head" type="button" data-toggle="${p.no}">
+          <span class="part-caret">▼</span>
+          <span class="part-no">第${p.no}部</span>
+          <span class="part-ttl">${esc(p.title)}</span>
+          ${p.tag ? `<span class="part-tag">${esc(p.tag)}</span>` : ''}
+          <span class="part-state">${done===total?'修了':done+' / '+total}</span>
+          <span class="ticks mini">${ticks}</span>
+        </button>
+        <p class="part-note">${esc(p.note)}</p>
+        <ul class="seclist">${items}</ul>
+      </section>`;
+    }
+    const items = (p.plan||[]).map((t,i)=>`<li>
+      <button class="secbtn" type="button" disabled>
+        <span class="n">${p.no}-${i+1}</span><span class="t">${esc(t)}</span><span class="done"></span>
+      </button></li>`).join('');
+    return `<section class="part pending">
+      <div class="part-head">
+        <span class="part-no">第${p.no}部</span>
+        <h2 class="part-ttl">${esc(p.title)}</h2>
+        <span class="part-state">準備中</span>
+      </div>
+      <ul class="seclist">${items}</ul>
+    </section>`;
+  }).join('');
+
+  // 全32節の進み具合
+  let doneAll = 0, totalAll = 0, allTicks = '', maxQuiz = 0;
+  const readyParts = PARTS.filter(p=>p.ready).length;
+  PARTS.forEach((p,pi)=>{
+    if(!p.ready) return;
+    if(allTicks) allTicks += '<i class="sp"></i>';
+    p.sections.forEach(s=>{
+      totalAll++;
+      maxQuiz = Math.max(maxQuiz, s.quiz.length);
+      const dn = isDone(p.no, s.no);
+      if(dn) doneAll++;
+      allTicks += `<i class="${dn?'on':''}"></i>`;
+    });
+  });
+  const overall = `<div class="overall">
+    <div class="col">
+      <p class="lbl">修了した節</p>
+      <p class="big">${doneAll}<span>/ ${totalAll}</span></p>
+    </div>
+    <span class="ticks">${allTicks}</span>
+  </div>`;
+
+  let resume = '';
+  if(LAST){
+    const lp = PARTS.find(p=>p.no===LAST.p);
+    const ls = lp && lp.sections && lp.sections.find(s=>s.no===LAST.s);
+    if(ls) resume = `<div class="resume">
+      <span class="lbl">つづきから読む</span>
+      <button type="button" id="resumeBtn">${LAST.p}·${LAST.s}　${esc(ls.title)}</button>
+    </div>`;
+  }
+  view().className = 'fade';
+  view().innerHTML = `
+    ${overall}
+    <p class="toc-lead">リズムを、拍の感じ方から合奏まで順番に組み立てていきます。全${readyParts}部${totalAll}節。各節は「読む → 練習問題」の順で進みます。${maxQuiz}問ぜんぶ正解すると、その節は「修了」になります。</p>
+    ${resume}
+    ${parts}`;
+  view().querySelectorAll('.secbtn[data-part]').forEach(b=>{
+    b.onclick = () => openSection(+b.dataset.part, +b.dataset.sec);
+  });
+  view().querySelectorAll('.part-head[data-toggle]').forEach(b=>{
+    b.onclick = () => {
+      const sec = b.closest('.part');
+      const no = +b.dataset.toggle;
+      const willOpen = sec.classList.contains('closed');
+      view().querySelectorAll('.part').forEach(el=>el.classList.add('closed'));
+      if(willOpen){ sec.classList.remove('closed'); OPEN = no; } else { OPEN = 0; }
+    };
+  });
+  const rb = $('resumeBtn');
+  if(rb) rb.onclick = () => openSection(LAST.p, LAST.s);
+  window.scrollTo(0,0);
+}
+
+/* ---- 節 ---- */
+function openSection(partNo, secNo){
+  const part = PARTS.find(p=>p.no===partNo);
+  const idx  = part.sections.findIndex(s=>s.no===secNo);
+  const s    = part.sections[idx];
+  CUR = {part:partNo, idx:idx};
+
+  $('topbar').classList.remove('hidden');
+  document.body.classList.add('reading');
+  $('crumb').textContent = `第${partNo}部 ${part.title}` + (part.tag ? `（${part.tag}）` : '');
+  saveLast(partNo, s.no);
+
+  const prev = part.sections[idx-1];
+  const next = part.sections[idx+1];
+
+  view().className = 'fade';
+  view().innerHTML = `
+    <div class="sec-head">
+      <div class="sec-no">第${partNo}部　${partNo}·${s.no}${isDone(partNo,s.no)?'<span class="sec-done">修了</span>':''}</div>
+      <h2 class="sec-ttl">${esc(s.title)}</h2>
+    </div>
+    <div id="reading">
+      <p class="lead">${s.lead}</p>
+      <div class="goal"><h4>この節でできるようになること</h4><p>${esc(s.goal||'')}</p></div>
+      <div class="body">${s.blocks.map(renderBlock).join('')}</div>
+    </div>
+    <div class="quiz" id="quiz"></div>
+    <div class="secnav" id="secnav">
+      ${prev ? `<button type="button" id="prevBtn"><span class="dir">← 前の節</span>${esc(prev.title)}</button>` : '<span style="flex:1"></span>'}
+      ${next ? `<button type="button" class="next" id="nextBtn"><span class="dir">次の節 →</span>${esc(next.title)}</button>` : '<span style="flex:1"></span>'}
+    </div>`;
+
+  bindPlays();
+  decorateTuplets();
+  decorateMarks();
+  showQuizGate(s);
+  if(prev) $('prevBtn').onclick = () => openSection(partNo, prev.no);
+  if(next) $('nextBtn').onclick = () => openSection(partNo, next.no);
+  NAV = {prev: prev ? [partNo, prev.no] : null, next: next ? [partNo, next.no] : null};
+  updateReadBar();
+  window.scrollTo(0,0);
+  // 節を開いたら見出しにフォーカスを移す（キーボードと読み上げのため）
+  const h = view().querySelector('.sec-ttl');
+  if(h){ h.setAttribute('tabindex','-1'); }
+}
+
+/* ---- 譜例の再生 ---- */
+let PLAYING = false;
+function bindPlays(){
+  view().querySelectorAll('.playbtn').forEach(btn=>{
+    btn.onclick = () => {
+      if(PLAYING) return;
+      const id  = btn.dataset.staff;
+      const box = $(id);
+      const holder = view().querySelector('.seqdata[data-for="'+id+'"]');
+      if(!box || !holder) return;
+      let seq;
+      try{ seq = JSON.parse(holder.textContent); }catch(e){ return; }
+      PLAYING = true;
+      box.classList.add('playing');
+      view().querySelectorAll('.playbtn').forEach(b=>b.disabled = true);
+      const bpm = +btn.dataset.bpm || 84;
+      // playStaffBar が内部で playSequence を呼ぶため、ここでは重ねて呼ばない
+      playStaffBar(seq, bpm, box, () => {
+        PLAYING = false;
+        box.classList.remove('playing');
+        view().querySelectorAll('.playbtn').forEach(b=>b.disabled = false);
+      });
+    };
+  });
+}
+
+
+/* ============================================================
+   聴き取り問題：音を鳴らして、4つの譜例から選ぶ
+   quiz の項目に ear:{seq, opt, bpm, choices:[seq,...]} があれば
+   選択肢を譜例として描き、設問に再生ボタンを付ける。
+============================================================ */
+let EAR_PLAYING = false;
+
+// 選択肢は配列（seqのみ）でも {seq, opt} でも書ける
+function earChoice(c, baseOpt){
+  const seq = Array.isArray(c) ? c : c.seq;
+  const opt = Object.assign({}, baseOpt || {}, Array.isArray(c) ? {} : (c.opt || {}));
+  return {seq: normSeq(seq), opt: opt};
+}
+
+// 選択肢用の小さな譜例
+function miniStaff(c, baseOpt){
+  const x = earChoice(c, baseOpt);
+  return `<div class="ministaff">${staffSVG(x.seq, x.opt)}</div>`;
+}
+
+// 設問の再生ボタン（正解の譜例を鳴らす。譜面は見せない）
+function earPrompt(q){
+  const id = 'ear' + Math.random().toString(36).slice(2,8);
+  return `<div class="earbox" id="${id}">
+      <p class="earlbl">音を聴いて、同じリズムの譜面を選んでください</p>
+      <button class="btn earbtn" type="button" data-ear="${id}">もう一度聴く</button>
+    </div>`;
+}
+
+function bindEar(q){
+  const box = view().querySelector('.earbox');
+  if(!box) return;
+  const btn = box.querySelector('.earbtn');
+  const play = () => {
+    if(EAR_PLAYING) return;
+    EAR_PLAYING = true;
+    btn.disabled = true;
+    box.classList.add('playing');
+    const seq = earChoice(q.ear.choices[q.a], q.ear.opt).seq;
+    const bpm = q.ear.bpm || 84;
+    playSequence(seq, bpm, {accentFirst:true, countIn:true, onEnd:()=>{
+      EAR_PLAYING = false;
+      btn.disabled = false;
+      box.classList.remove('playing');
+    }});
+  };
+  btn.onclick = play;
+  play();   // 出題と同時に一度鳴らす
+}
+
+/* ---- 演習 ---- */
+// 本文（解説・到達目標）の表示を切り替える。演習中は隠して、答えが見えないようにする。
+function setReading(show){
+  const r = $('reading'), n = $('secnav');
+  if(r) r.classList.toggle('hidden', !show);
+  if(n) n.classList.toggle('hidden', !show);
+}
+
+// 演習の入口。ここを押すまで問題は出さない。
+// のこっている問題（正解ずみを除いたもの）。全部解けていれば全問を返す。
+function pendingOf(sec){
+  const sv = solvedOf(CUR.part, sec.no);
+  const rest = sec.quiz.map((_,i)=>i).filter(i => sv.indexOf(i) < 0);
+  return rest.length ? rest : sec.quiz.map((_,i)=>i);
+}
+
+function showQuizGate(sec){
+  setReading(true);
+  QUIZ = false;
+  const box = $('quiz');
+  const all  = sec.quiz.length;
+  const nSol = solvedOf(CUR.part, sec.no).length;
+  const rest = all - nSol;
+  const done = isDone(CUR.part, sec.no);
+
+  let msg, label;
+  if(done){
+    msg = `この節は修了しています。もう一度${all}問すべてを解き直せます。`;
+    label = 'もう一回やる';
+  }else if(nSol > 0){
+    msg = `${all}問のうち${nSol}問は正解ずみです。<b>のこり${rest}問</b>だけ解きます。`;
+    label = `のこり${rest}問を解く`;
+  }else{
+    msg = `ここまでの内容を${all}問でチェックします。3問ぜんぶ正解で修了です。`;
+    label = 'やってみる';
+  }
+  box.innerHTML = `
+    <div class="qstart">
+      <h3>演習</h3>
+      <p>${msg} 問題を解いているあいだは本文を隠します。</p>
+      <div class="qnav">
+        <button class="btn on-ink" type="button" id="qStart">${label}</button>
+        ${nSol > 0 && !done ? '<button class="btn on-ink ghost" type="button" id="qAll">最初から全部</button>' : ''}
+      </div>
+    </div>`;
+  // 修了ずみの節は、解き直しのたびに全問を出す
+  $('qStart').onclick = () => {
+    if(done) clearSolved(CUR.part, sec.no);
+    startQuiz(sec);
+  };
+  const ga = $('qAll');
+  if(ga) ga.onclick = () => { clearSolved(CUR.part, sec.no); startQuiz(sec); };
+}
+
+function startQuiz(sec){
+  const box = $('quiz');
+  const list = pendingOf(sec);                  // この回に出す問題の番号
+  const state = {i:0, ok:0, list:list};
+  setReading(false);
+  QUIZ = true;
+  window.scrollTo(0,0);
+
+  function bar(){
+    return `<div class="qprog">${list.map((_,i)=>
+      `<i class="${i<state.i?'on':(i===state.i?'cur':'')}"></i>`).join('')}</div>`;
+  }
+
+  function draw(){
+    const q = sec.quiz[list[state.i]];
+    const isEar = !!q.ear;
+    const optHTML = isEar
+      ? q.ear.choices.map((c,i)=>
+          `<button class="opt opt-staff" type="button" data-i="${i}"><span class="kbd">${'ABCD'[i]||''}</span>${miniStaff(c, q.ear.opt)}</button>`).join('')
+      : q.opts.map((o,i)=>
+          `<button class="opt" type="button" data-i="${i}"><span class="kbd">${'ABCD'[i]||''}</span><span>${esc(o)}</span></button>`).join('');
+    box.innerHTML = `
+      <div class="qcard">
+        <div class="qbanner"><h3>${isEar ? '聴き取り' : '演習'}</h3><span class="qmeta">${state.i+1} / ${list.length}</span></div>
+        <div class="qbody">
+          ${bar()}
+          <p class="qtext">${esc(q.q)}</p>
+          ${isEar ? earPrompt(q) : ''}
+          <div class="opts${isEar ? ' opts-staff' : ''}">${optHTML}</div>
+          <div id="ansBox"></div>
+        </div>
+      </div>`;
+    if(isEar) bindEar(q);
+    box.querySelectorAll('.opt').forEach(b=>{
+      b.onclick = () => answer(+b.dataset.i, q);
+    });
+  }
+
+  function answer(pick, q){
+    const ok = pick === q.a;
+    if(ok){ state.ok++; addSolved(CUR.part, sec.no, list[state.i]); }
+    const eb = box.querySelector('.earbtn');
+    if(eb) eb.disabled = false;
+    box.querySelectorAll('.opt').forEach((b,i)=>{
+      b.disabled = true;
+      if(i === pick){
+        b.classList.add(ok ? 'pick-ok' : 'pick-ng');
+        b.insertAdjacentHTML('beforeend', `<span class="tagmk">${ok ? '正解' : 'ちがう'}</span>`);
+      }
+      if(!ok && i === q.a){
+        b.classList.add('reveal');
+        b.insertAdjacentHTML('beforeend', '<span class="tagmk">こたえ</span>');
+      }
+    });
+    const last = state.i === list.length - 1;
+    $('ansBox').innerHTML = `
+      <div class="ans ${ok?'ok':'ng'}">
+        <span class="verdict">${ok?'正解':'もう一歩'}</span>${esc(q.exp)}</div>
+      <div class="qnav">
+        <button class="btn" type="button" id="qNext">${last?'結果を見る':'つぎの問題'}</button>
+        <span class="kbdhint">Enter</span>
+      </div>`;
+    $('qNext').onclick = () => {
+      if(last){ finish(); } else { state.i++; draw(); }
+    };
+  }
+
+  function finish(){
+    const all   = sec.quiz.length;
+    const nSol  = solvedOf(CUR.part, sec.no).length;   // 通算で正解した数
+    const rest  = all - nSol;
+    const perfect = nSol === all;
+    if(perfect) markDone(CUR.part, sec.no);
+    box.innerHTML = `
+      <div class="qcard">
+        <div class="qbanner"><h3>演習</h3><span class="qmeta">${nSol} / ${all}</span></div>
+        <div class="qbody">
+        <div class="result">
+          <p class="pct">${Math.round(nSol/all*100)}<span style="font-size:.45em">%</span></p>
+          <p class="big">${nSol} / ${all} 問正解</p>
+          <p class="sm">${perfect
+            ? 'この節は修了です。目次に「修了」が付きました。'
+            : `のこり${rest}問です。まちがえた問題だけをもう一度解けます。`}</p>
+          <div class="qnav">
+            <button class="btn" type="button" id="qRetry">${perfect ? 'もう一回やる' : `のこり${rest}問を解く`}</button>
+            <button class="btn ghost" type="button" id="qBack">本文に戻る</button>
+          </div>
+        </div>
+        </div>
+      </div>`;
+    $('qRetry').onclick = () => {
+      if(perfect) clearSolvedForReview();
+      startQuiz(sec);
+    };
+    $('qBack').onclick  = () => { showQuizGate(sec); window.scrollTo(0,0); };
+  }
+
+  // 修了ずみの節をもう一度やるときは、その回だけ全問を出す（修了は取り消さない）
+  function clearSolvedForReview(){ clearSolved(CUR.part, sec.no); }
+
+  draw();
+}
+
+/* ---- 読み進みの表示 ---- */
+function updateReadBar(){
+  const fill = $('readFill');
+  if(!fill) return;
+  if(!CUR){ fill.style.width = '0'; return; }
+  const doc = document.documentElement;
+  const max = doc.scrollHeight - window.innerHeight;
+  const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+  fill.style.width = (p * 100) + '%';
+}
+
+/* ---- キーボード操作 ---- */
+function onKey(e){
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  const tag = (e.target && e.target.tagName || '').toLowerCase();
+  if(tag === 'input' || tag === 'textarea') return;
+
+  if(QUIZ){
+    // 演習中：1〜4 で選択、Enter で次へ
+    const idx = ['1','2','3','4'].indexOf(e.key);
+    if(idx >= 0){
+      const opts = view().querySelectorAll('.opt:not([disabled])');
+      if(opts[idx]){ e.preventDefault(); opts[idx].click(); }
+      return;
+    }
+    if(e.key === 'Enter'){
+      const nx = $('qNext') || $('qRetry');
+      if(nx){ e.preventDefault(); nx.click(); }
+    }
+    return;
+  }
+  if(!CUR){ return; }
+  if(e.key === 'ArrowRight' && NAV.next){ e.preventDefault(); openSection(NAV.next[0], NAV.next[1]); }
+  if(e.key === 'ArrowLeft'  && NAV.prev){ e.preventDefault(); openSection(NAV.prev[0], NAV.prev[1]); }
+  if(e.key === 'Escape'){ e.preventDefault(); renderToc(); }
+  if(e.key === 'Enter'){
+    const st = $('qStart');
+    if(st){ e.preventDefault(); st.click(); }
+  }
+}
+
+/* ============================================================
+   起動
+============================================================ */
+function boot(){
+  document.title = APP_NAME;
+  const sr = $('appTitle').querySelector('.sr');
+  if(sr) sr.textContent = APP_NAME;
+  $('appSub').textContent = APP_SUB;
+  drawLogo($('logo'));
+  loadProg();
+  loadSolved();
+  loadLast();
+  $('backBtn').onclick = renderToc;
+  window.addEventListener('scroll', updateReadBar, {passive:true});
+  window.addEventListener('resize', updateReadBar);
+  document.addEventListener('keydown', onKey);
+  renderToc();
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', boot);
+}else{ boot(); }
+
+/* 自動検証から参照するための公開（画面の動作には影響しません） */
+window.APP = {PARTS, openSection, renderToc, isDone, normSeq, T, DUR, barTickOf, startQuiz, showQuizGate, onKey, updateReadBar, solvedOf, pendingOf, clearSolved, earChoice};
+
+
+</script>
+</body>
+</html>
