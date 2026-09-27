@@ -825,12 +825,68 @@ function expandTies(seq,totalTick){
 /* ═══ 共通のリズム譜（rhythm.js）で描くための受け渡し ═══
    Woodpecker の譜例（seq・opt・tuplets・strokes・accents）を、共通のリズム譜の形に直す。 */
 function wpRhyOk(){return !!(window.DS&&DS.rhythm&&DS.rhythm.render&&DS.rhythm.newTupletId&&parseFloat(DS.rhythm.version)>=1.1);}   // 1.1 より古い rhythm.js の時は、これまでの描き方で出す
+/* ---- 連符を自動で見分ける ----
+   Woodpecker のデータは {key:'eighth', tick:16} のように「見た目の音符」と「実際の長さ」を
+   別々に持つ。見た目の長さ ÷ 実際の長さ が 1.5 なら3つ割り、1.25 なら5つ割り…と分かるので、
+   連符の指定が書かれていない譜面（聴き取り問題の選択肢など）でも正しく描けるようにする。 */
+var WP_TURATIO=[[1.5,3],[1.25,5],[1.75,7]];      // 見た目÷実際 → 何等分か
+function wpTuN(base, tick){
+  if(!base || !tick || base===tick) return 0;
+  var r=base/tick;
+  for(var i=0;i<WP_TURATIO.length;i++){ if(Math.abs(r-WP_TURATIO[i][0])<0.01) return WP_TURATIO[i][1]; }
+  return 0;
+}
+// 同じ割り方が続くあいだをひとまとまりにする。合計が拍ちょうどになったら、そこで区切る。
+function wpAutoTuplets(seq){
+  var out={}, i=0, g=0;
+  while(i<seq.length){
+    var n=seq[i], key=(typeof n==='string')?n:n.key;
+    var base=(DUR[key]||{}).tick, tick=(typeof n==='object'&&n.tick!=null)?n.tick:base;
+    var cnt=wpTuN(base, tick);
+    if(!cnt){ i++; continue; }
+    var j=i, acc=0;
+    while(j<seq.length){
+      var m=seq[j], k2=(typeof m==='string')?m:m.key;
+      var b2=(DUR[k2]||{}).tick, t2=(typeof m==='object'&&m.tick!=null)?m.tick:b2;
+      if(wpTuN(b2,t2)!==cnt) break;
+      acc+=t2; j++;
+      if(acc%T===0) break;        // 拍の切れ目でまとまりを閉じる
+    }
+    var inn=1; while(inn*2<cnt) inn*=2;
+    for(var k=i;k<j;k++) out[k]={n:cnt, in:inn, g:g};
+    g++; i=j;
+  }
+  return out;
+}
+/* ---- 共通のリズム譜で描けるかどうか ----
+   描けない長さが混じっていると、譜面の幅が極端に広がって小さく縮んでしまう。
+   その時は、これまでの描き方（staffSVG）で出す。 */
+function wpDrawable(seq){
+  if(!(window.DS&&DS.rhythm&&DS.rhythm.shape)) return false;
+  var K=DS.rhythm.T.QUARTER/48, au=wpAutoTuplets(seq);
+  for(var i=0;i<seq.length;i++){
+    var n=seq[i], key=(typeof n==='string')?n:n.key;
+    var base=(DUR[key]||{}).tick;
+    var tick=(typeof n==='object'&&n.tick!=null)?n.tick:base;
+    if(!tick) return false;
+    var len=tick*K, t=au[i];
+    if(!DS.rhythm.shape(t ? len*t.n/t.in : len)) return false;
+  }
+  return true;
+}
 function wpScore(x){
   var R=DS.rhythm,Q=R.T.QUARTER,K=Q/48,o=x.opt||{};
   var ticks=x.seq.map(function(n){return n.tick||(DUR[n.key]||{tick:48}).tick;});
   var sum=ticks.reduce(function(a,b){return a+b;},0),total=o.totalTick||0,sig=o.meterSig;
   if(!sig){var t=total||sum;sig=[Math.max(1,Math.round(t/48)),4];}      // 拍子記号の無い譜例は、長さから拍子を決めて記号は出さない
   var barT=sig[0]*192/sig[1],tu={},acc={};
+  // 連符の指定が書かれていない所は、長さの比から自動で見分ける（まとまりごとに番号を振る）
+  var _au=wpAutoTuplets(x.seq), _gid={};
+  Object.keys(_au).forEach(function(k){
+    var a=_au[k];
+    if(_gid[a.g]==null) _gid[a.g]=R.newTupletId();
+    tu[k]={n:a.n, in:a.in, id:_gid[a.g]};
+  });
   (x.tuplets||[]).forEach(function(sp){var n=+(sp.label||3),id=R.newTupletId(),inn=1;while(inn*2<n)inn*=2;
     for(var i=sp.from;i<=sp.to;i++)tu[i]={n:n,in:inn,id:id};});
   (x.accents||[]).forEach(function(i){acc[i]=1;});
@@ -905,7 +961,7 @@ if(window.MutationObserver)new MutationObserver(function(){wpHydrate();wpWrapSoo
 
 function staffSVG(seq, opt={}){
   // seq: [{key, rest, blank, mark}]
-  if(wpRhyOk()&&!opt.barTick&&!seq.some(function(n){return n.blank||n.mark;}))
+  if(wpRhyOk()&&!opt.barTick&&!seq.some(function(n){return n.blank||n.mark;})&&wpDrawable(seq))
     return '<div class="rhy-slot" data-rhy="'+encodeURIComponent(JSON.stringify({seq:seq,opt:opt}))+'"></div>';
   const pad=18, top=14, height=86;
   const totalTick = opt.totalTick || seq.reduce((s,n)=>s+(n.tick||DUR[n.key].tick),0) || 192;
