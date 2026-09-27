@@ -424,8 +424,149 @@
 <script src="https://yagarguitar-stack.github.io/design-system/v1/rhythm.js"></script>
 <style>/* 共通のリズム譜の色：記号は本文の色、再生の線と光は強調色、拍の点線は薄く */
 .rhy-slot{--ds-rhy-ink:var(--ink);--ds-rhy-hi:var(--accent);--ds-rhy-guide:rgba(58,55,48,.35)}</style>
+<!-- 共通の画面の部品（設計図の見た目）。読み込めない時は、これまでの見た目のまま -->
+<link rel="stylesheet" href="https://yagarguitar-stack.github.io/design-system/v1/components.css">
+<script src="https://yagarguitar-stack.github.io/design-system/v1/components.js"></script>
+<style>
+/* ===== 共通の部品が読めた時だけ効く（body に wp-ds が付く） ===== */
+body.wp-ds{
+  --paper:var(--ds-paper);
+  --paper-deep:color-mix(in srgb,var(--ds-ink) 6%,var(--ds-paper));
+  --card:var(--ds-paper);
+  --ink:var(--ds-ink);
+  --ink-soft:color-mix(in srgb,var(--ds-ink) 84%,var(--ds-paper));
+  --stave:var(--ds-ink);
+  --muted:color-mix(in srgb,var(--ds-ink) 62%,var(--ds-paper));
+  --rule:color-mix(in srgb,var(--ds-ink) 32%,var(--ds-paper));
+  --rule-fine:color-mix(in srgb,var(--ds-ink) 16%,var(--ds-paper));
+  --line:var(--rule);
+  --bar-fill:var(--ds-ink);
+  --accent:var(--ds-accent);
+  --accent-deep:color-mix(in srgb,var(--ds-accent) 80%,var(--ds-ink));
+  --accent-soft:color-mix(in srgb,var(--ds-accent) 13%,var(--ds-paper));
+  --wp-good:#2e6b4a;
+  --good:var(--wp-good);
+  --good-soft:color-mix(in srgb,var(--wp-good) 13%,var(--ds-paper));
+  --bad:var(--ds-accent);
+  --bad-soft:var(--accent-soft);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --sans:var(--ds-font);
+  --serif:var(--ds-font);
+  --num:var(--mono);
+  overflow:visible;min-height:100vh;
+  padding:28px 22px 96px;font-size:15px;line-height:1.5;
+}
+@media (prefers-color-scheme:dark){ body.wp-ds:not(.ds-day){--wp-good:#8fdcaa} }
+body.wp-ds.ds-night{--wp-good:#8fdcaa}
+@media (max-width:520px){ body.wp-ds{padding:26px 18px 96px} }
+body.wp-ds .wrap{padding:0 10px}
+body.wp-ds .ds-tb{z-index:1}
+body.wp-ds :focus-visible{outline:1px solid var(--ds-accent);outline-offset:3px}
+body.wp-ds button{color:inherit}
+
+/* 見出し */
+body.wp-ds header{padding-top:var(--s6)}
+body.wp-ds .ttl-sub{font-family:var(--mono);font-size:10.5px;letter-spacing:.3em}
+body.wp-ds .headrule{border-top:1px solid var(--ink)}
+body.wp-ds .topbar{background:var(--paper);box-shadow:none;border-bottom:1px solid var(--ink)}
+body.wp-ds .backbtn{border:1px solid var(--ink);padding:6px 14px;font-weight:700;letter-spacing:.12em;color:var(--ink)}
+body.wp-ds .backbtn:hover{background:var(--ink);color:var(--paper)}
+body.wp-ds .crumb{font-family:var(--mono);font-size:10.5px}
+
+/* 目次 */
+body.wp-ds .overall{border-top:1px solid var(--ink)}
+body.wp-ds .overall .big{font-weight:500}
+body.wp-ds .overall .lbl,body.wp-ds .part-state{font-family:var(--mono)}
+body.wp-ds #view{counter-reset:wpp}
+body.wp-ds .part{counter-increment:wpp}
+body.wp-ds .part-head{border-bottom:1px solid var(--ink)}
+body.wp-ds .part-no{font-size:0;letter-spacing:0}
+body.wp-ds .part-no::after{content:counter(wpp);display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--ink);border-radius:50%;font-family:var(--mono);font-size:11.5px;font-weight:500;color:var(--ink)}
+body.wp-ds .part.complete .part-no::after{background:var(--ink);color:var(--paper)}
+body.wp-ds .part-ttl{font-size:18px;font-weight:800;letter-spacing:.14em}
+body.wp-ds .part-tag{border-color:currentColor}
+body.wp-ds .seclist{border:1px solid var(--ink);border-top:0;margin-top:0}
+body.wp-ds .seclist li + li{border-top:1px solid var(--rule)}
+body.wp-ds .secbtn{padding:0;gap:0;align-items:stretch;position:relative;isolation:isolate;transition:color .18s}
+body.wp-ds .secbtn::before{content:'';position:absolute;inset:0;background:var(--ink);transform:scaleX(0);transform-origin:left;transition:transform .24s cubic-bezier(.2,.8,.2,1);z-index:-1}
+body.wp-ds .secbtn:hover{padding-left:0;color:inherit;background:var(--paper-deep)}
+body.wp-ds .secbtn:active{opacity:1}
+body.wp-ds .secbtn:active::before{transform:scaleX(1)}
+body.wp-ds .secbtn:active *{color:var(--paper)!important}
+body.wp-ds .secbtn .mk{display:none}
+body.wp-ds .secbtn .n{width:4.2em;padding:12px 0;text-align:center;border-right:1px solid var(--rule);font-variant-numeric:lining-nums tabular-nums;font-size:12px}
+body.wp-ds .secbtn .t{padding:12px 12px;align-self:center}
+body.wp-ds .secbtn .done{align-self:center;padding:0 12px;font-family:var(--mono);font-weight:500}
+body.wp-ds .secbtn.is-done .t{font-weight:700}
+
+/* 本文 */
+body.wp-ds .sec-no{font-size:11px;letter-spacing:.3em}
+body.wp-ds .sec-ttl{font-size:1.9rem;font-weight:800;letter-spacing:.1em}
+body.wp-ds .sec-done{color:var(--paper)}
+body.wp-ds .lead{font-size:16.5px}
+body.wp-ds .goal{border:1px solid var(--ink);padding:var(--s4)}
+body.wp-ds .goal h4,body.wp-ds .keybox h4{font-family:var(--mono);font-weight:500}
+body.wp-ds .keybox{border:1px dashed var(--accent);padding:var(--s4)}
+body.wp-ds .keybox p{font-weight:700;font-size:15.5px}
+body.wp-ds .box{border-left:1px solid var(--ink)}
+body.wp-ds .staffwrap{border:1px solid var(--rule);padding:var(--s4) var(--s3)}
+body.wp-ds .rhy-slot{--ds-rhy-guide:color-mix(in srgb,var(--ds-ink) 35%,transparent)}
+body.wp-ds .tbl th,body.wp-ds .tbl td{border:1px solid var(--rule)}
+body.wp-ds .tbl thead th{border:1px solid var(--ink);font-family:var(--mono)}
+body.wp-ds .bt .num,body.wp-ds .cnt span{font-family:var(--mono)}
+
+/* ボタン */
+body.wp-ds .btn{border:1px solid var(--ink);font-weight:700;letter-spacing:.12em;min-height:44px;position:relative;isolation:isolate;transition:color .18s}
+body.wp-ds .btn::after{content:'';position:absolute;inset:-1px;background:var(--ink);transform:scaleX(0);transform-origin:left;transition:transform .24s cubic-bezier(.2,.8,.2,1);z-index:-1}
+body.wp-ds .btn:hover{background:var(--paper-deep);color:var(--ink)}
+body.wp-ds .btn:active::after{transform:scaleX(1)}
+body.wp-ds .btn:active{color:var(--paper)}
+body.wp-ds .btn.ghost{border-color:var(--rule)}
+body.wp-ds .btn.on-ink{background:none;border-color:var(--ink);color:var(--ink);outline:1px solid var(--rule);outline-offset:3px;min-width:12em}
+body.wp-ds .btn.on-ink:hover{background:var(--paper-deep);color:var(--ink);border-color:var(--ink)}
+body.wp-ds .btn.on-ink:active{color:var(--paper)}
+body.wp-ds .btn.on-ink.ghost{outline:0;border-color:var(--rule)}
+body.wp-ds .playbtn{font-weight:700}
+body.wp-ds .earbtn:hover{background:var(--paper-deep);color:var(--ink)}
+
+/* 演習 */
+body.wp-ds .qstart,body.wp-ds .qcard{border:1px solid var(--ink);box-shadow:none}
+body.wp-ds .qstart h3,body.wp-ds .qbanner h3{font-family:var(--ds-font);font-weight:800}
+body.wp-ds .qbanner{background:none;border-bottom:1px solid var(--ink)}
+body.wp-ds .qtext{font-weight:700;font-size:17px}
+body.wp-ds .opt{background:none;border-color:color-mix(in srgb,var(--ds-ink) 45%,var(--ds-paper))}
+body.wp-ds .opt .kbd{border-radius:50%;border-color:var(--ink);background:none;color:var(--ink);font-size:11.5px;line-height:1.55em}
+body.wp-ds .opt:hover:not([disabled]){background:var(--paper-deep)}
+body.wp-ds .opt.pick-ok .kbd,body.wp-ds .opt.reveal .kbd,body.wp-ds .opt.pick-ng .kbd{color:var(--paper)}
+body.wp-ds .ans .verdict{font-family:var(--ds-font);font-weight:800}
+body.wp-ds .earbox{background:none;border:1px dashed var(--ink);border-left:4px solid var(--accent)}
+body.wp-ds .result .pct{font-weight:500}
+
+body.wp-ds .secnav{border-top:1px solid var(--ink)}
+body.wp-ds .secnav button .dir{font-family:var(--mono)}
+body.wp-ds footer{border-top:1px solid var(--rule);font-family:var(--ds-font)}
+
+/* 共通の部品の「ボタンの素の形」より、こちらの形を優先する */
+body.wp-ds .btn{padding:var(--s3) var(--s5)}
+body.wp-ds .playbtn{padding:var(--s1) 0;border-bottom:1px solid var(--rule)}
+body.wp-ds .earbtn{border:1px solid var(--ink);padding:var(--s2) var(--s5)}
+body.wp-ds .part-head{padding:0 0 var(--s3)}
+body.wp-ds .secnav button{padding:var(--s3) 0}
+body.wp-ds .resume button{border-bottom:1px solid var(--accent)}
+body.wp-ds .opt{border:1px solid color-mix(in srgb,var(--ds-ink) 45%,var(--ds-paper));padding:var(--s4)}
+body.wp-ds .opt-staff{padding:var(--s3) var(--s4)}
+body.wp-ds .opt.pick-ok,body.wp-ds .opt.reveal{background:var(--good-soft);border-color:var(--good);border-left-width:5px}
+body.wp-ds .opt.pick-ng{background:var(--bad-soft);border-color:var(--bad);border-left-width:5px}
+body.wp-ds .opt.pick-ok .kbd,body.wp-ds .opt.reveal .kbd{background:var(--good);border-color:var(--good)}
+body.wp-ds .opt.pick-ng .kbd{background:var(--bad);border-color:var(--bad)}
+body.wp-ds .secbtn .n{display:flex;align-items:center;justify-content:center}
+@media (max-width:520px){ body.wp-ds{padding:26px 22px 96px} body.wp-ds .wrap{padding:0 8px} }
+</style>
 </head>
 <body>
+<script>/* 共通の画面の部品が読めた時だけ、設計図の見た目にする */
+(function(){if(!(window.DS&&DS.ui))return;var b=document.body;b.classList.add('ds-ui','ds-plan','wp-ds');
+  b.setAttribute('data-ds-title','Woodpecker');b.setAttribute('data-ds-dwg','WP-01');b.setAttribute('data-ds-scale','4 / 4');})();</script>
 <div class="wrap">
   <header>
     <h1 class="ttl" id="appTitle"><svg id="logo"></svg><span class="sr">Woodpecker</span></h1>
