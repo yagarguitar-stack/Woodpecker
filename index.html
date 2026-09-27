@@ -418,6 +418,16 @@
   @media (prefers-reduced-motion:reduce){
     *{transition:none!important;animation:none!important;}
   }
+  header{position:relative;}
+  .sebtn{
+    position:absolute;top:var(--s5);right:0;
+    background:none;border:1px solid var(--rule);border-radius:999px;
+    color:var(--muted);font-size:11px;letter-spacing:.06em;
+    padding:var(--s1) var(--s3);cursor:pointer;
+  }
+  .sebtn[aria-pressed="false"]{color:var(--muted);opacity:.7;}
+  .sebtn:hover{border-color:var(--ink);color:var(--ink);}
+
   .hidden{display:none!important;}
 
   /* 日本語の折り返しを言葉の切れ目にそろえる（対応していないブラウザでは これまで通り） */
@@ -579,6 +589,7 @@ body.wp-ds .secbtn .n{display:flex;align-items:center;justify-content:center}
   <header>
     <h1 class="ttl" id="appTitle"><svg id="logo"></svg><span class="sr">Woodpecker</span></h1>
     <p class="ttl-sub" id="appSub">拍・音の長さ・ノリを順番に</p>
+    <button class="sebtn" id="seBtn" type="button">効果音 入</button>
     <hr class="headrule">
   </header>
 
@@ -1159,6 +1170,25 @@ function withDrums(cb){
 }
 // 早めに読み込んでおく
 withDrums(function(){});
+
+/* ---------- 画面の効果音 ----------
+   共通の音源の効果音（Kenney「Interface Sounds」／CC0・表記不要）を鳴らす。
+   入・切は画面右上のボタンで切り替え、この端末に覚えておく。 */
+var WP_SE = {
+  on: (function(){ try{ return localStorage.getItem('wp.se') !== 'off'; }catch(e){ return true; } })(),
+  set: function(v){ this.on = !!v; try{ localStorage.setItem('wp.se', v ? 'on' : 'off'); }catch(e){} }
+};
+function se(name, delay){
+  if(!WP_SE.on) return;
+  var S = dsSound(); if(!S || !S.ui) return;
+  if(delay) setTimeout(function(){ if(WP_SE.on) S.ui(name); }, delay);
+  else S.ui(name);
+}
+// 最初の操作で効果音を読み込んでおく（鳴り出しの遅れを無くす）
+document.addEventListener('pointerdown', function preUI(){
+  document.removeEventListener('pointerdown', preUI, true);
+  var S = dsSound(); if(WP_SE.on && S && S.uiPreload) S.uiPreload();
+}, true);
 document.addEventListener('pointerdown', function pre(){
   document.removeEventListener('pointerdown', pre, true); withDrums(function(){});
 }, true);
@@ -2802,19 +2832,20 @@ function renderToc(){
     ${resume}
     ${parts}`;
   view().querySelectorAll('.secbtn[data-part]').forEach(b=>{
-    b.onclick = () => openSection(+b.dataset.part, +b.dataset.sec);
+    b.onclick = () => { se('open'); openSection(+b.dataset.part, +b.dataset.sec); };
   });
   view().querySelectorAll('.part-head[data-toggle]').forEach(b=>{
     b.onclick = () => {
       const sec = b.closest('.part');
       const no = +b.dataset.toggle;
       const willOpen = sec.classList.contains('closed');
+      se(willOpen ? 'open' : 'close');
       view().querySelectorAll('.part').forEach(el=>el.classList.add('closed'));
       if(willOpen){ sec.classList.remove('closed'); OPEN = no; } else { OPEN = 0; }
     };
   });
   const rb = $('resumeBtn');
-  if(rb) rb.onclick = () => openSection(LAST.p, LAST.s);
+  if(rb) rb.onclick = () => { se('open'); openSection(LAST.p, LAST.s); };
   window.scrollTo(0,0);
 }
 
@@ -2856,8 +2887,8 @@ function openSection(partNo, secNo){
   wpHydrate(view());
   wpWrap(view());
   showQuizGate(s);
-  if(prev) $('prevBtn').onclick = () => openSection(partNo, prev.no);
-  if(next) $('nextBtn').onclick = () => openSection(partNo, next.no);
+  if(prev) $('prevBtn').onclick = () => { se('tap'); openSection(partNo, prev.no); };
+  if(next) $('nextBtn').onclick = () => { se('tap'); openSection(partNo, next.no); };
   NAV = {prev: prev ? [partNo, prev.no] : null, next: next ? [partNo, next.no] : null};
   updateReadBar();
   window.scrollTo(0,0);
@@ -2990,11 +3021,12 @@ function showQuizGate(sec){
     </div>`;
   // 修了ずみの節は、解き直しのたびに全問を出す
   $('qStart').onclick = () => {
+    se('big');
     if(done) clearSolved(CUR.part, sec.no);
     startQuiz(sec);
   };
   const ga = $('qAll');
-  if(ga) ga.onclick = () => { clearSolved(CUR.part, sec.no); startQuiz(sec); };
+  if(ga) ga.onclick = () => { se('big'); clearSolved(CUR.part, sec.no); startQuiz(sec); };
 }
 
 function startQuiz(sec){
@@ -3031,12 +3063,13 @@ function startQuiz(sec){
       </div>`;
     if(isEar) bindEar(q);
     box.querySelectorAll('.opt').forEach(b=>{
-      b.onclick = () => answer(+b.dataset.i, q);
+      b.onclick = () => { se('select'); answer(+b.dataset.i, q); };
     });
   }
 
   function answer(pick, q){
     const ok = pick === q.a;
+    se(ok ? 'save' : 'ng', 160);
     if(ok){ state.ok++; addSolved(CUR.part, sec.no, list[state.i]); }
     const eb = box.querySelector('.earbtn');
     if(eb) eb.disabled = false;
@@ -3060,6 +3093,7 @@ function startQuiz(sec){
         <span class="kbdhint">Enter</span>
       </div>`;
     $('qNext').onclick = () => {
+      se('tap');
       if(last){ finish(); } else { state.i++; draw(); }
     };
   }
@@ -3088,10 +3122,11 @@ function startQuiz(sec){
         </div>
       </div>`;
     $('qRetry').onclick = () => {
+      se('tap');
       if(perfect) clearSolvedForReview();
       startQuiz(sec);
     };
-    $('qBack').onclick  = () => { showQuizGate(sec); window.scrollTo(0,0); };
+    $('qBack').onclick  = () => { se('tap'); showQuizGate(sec); window.scrollTo(0,0); };
   }
 
   // 修了ずみの節をもう一度やるときは、その回だけ全問を出す（修了は取り消さない）
@@ -3153,7 +3188,21 @@ function boot(){
   loadProg();
   loadSolved();
   loadLast();
-  $('backBtn').onclick = renderToc;
+  $('backBtn').onclick = () => { se('tap'); renderToc(); };
+  // 効果音の入・切
+  (function(){
+    var b = $('seBtn'); if(!b) return;
+    var draw = function(){
+      b.textContent = '効果音 ' + (WP_SE.on ? '入' : '切');
+      b.setAttribute('aria-pressed', WP_SE.on ? 'true' : 'false');
+    };
+    draw();
+    b.onclick = function(){
+      if(WP_SE.on){ se('off'); WP_SE.set(false); }
+      else{ WP_SE.set(true); var S=dsSound(); if(S&&S.uiPreload) S.uiPreload(); se('on'); }
+      draw();
+    };
+  })();
   window.addEventListener('scroll', updateReadBar, {passive:true});
   window.addEventListener('resize', updateReadBar);
   document.addEventListener('keydown', onKey);
